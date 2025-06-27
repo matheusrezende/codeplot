@@ -65,11 +65,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/matheus/codeplot.git"
+    "url": "https://github.com/matheusrezende/codeplot.git"
   },
-  "homepage": "https://github.com/matheus/codeplot#readme",
+  "homepage": "https://github.com/matheusrezende/codeplot#readme",
   "bugs": {
-    "url": "https://github.com/matheus/codeplot/issues"
+    "url": "https://github.com/matheusrezende/codeplot/issues"
   },
   "publishConfig": {
     "access": "public"

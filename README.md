@@ -1,8 +1,8 @@
 # Codeplot
 
 [![npm version](https://badge.fury.io/js/codeplot.svg)](https://badge.fury.io/js/codeplot)
-[![CI/CD Pipeline](https://github.com/matheus/codeplot/actions/workflows/ci.yml/badge.svg)](https://github.com/matheus/codeplot/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/matheus/codeplot/branch/main/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/matheus/codeplot)
+[![CI/CD Pipeline](https://github.com/matheusrezende/codeplot/actions/workflows/ci.yml/badge.svg)](https://github.com/matheusrezende/codeplot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/matheusrezende/codeplot/branch/main/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/matheusrezende/codeplot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
 
@@ -41,7 +41,7 @@ An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and g
 2. Clone or download this repository:
 
    ```bash
-   git clone https://github.com/matheus/codeplot.git
+   git clone https://github.com/matheusrezende/codeplot.git
    cd codeplot
    ```
 

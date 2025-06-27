@@ -137,11 +137,54 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
       console.log(chalk.blue('This session already has a completed ADR!'));
       console.log(chalk.gray(`Feature: ${this.featureData.description}`));
       console.log(chalk.gray(`ADR: ${this.featureData.adr_title || this.featureData.name}`));
-      console.log(
-        chalk.yellow('\nThe ADR for this feature is complete. No further planning needed.')
-      );
       console.log();
-      return this.featureData;
+
+      const { action } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'action',
+          message: 'What would you like to do?',
+          choices: [
+            { name: '📖 Review the current ADR content', value: 'review' },
+            { name: '✏️  Make changes or refinements to the ADR', value: 'modify' },
+            { name: '✅ Exit (ADR is complete)', value: 'exit' },
+          ],
+        },
+      ]);
+
+      if (action === 'exit') {
+        console.log(chalk.green('Session complete. Exiting.'));
+        return this.featureData;
+      } else if (action === 'review') {
+        console.log(chalk.blue('\n📖 Current ADR Content:'));
+        console.log(chalk.gray('='.repeat(80)));
+        console.log(this.featureData.adr_content);
+        console.log(chalk.gray('='.repeat(80)));
+        console.log();
+
+        // After reviewing, ask if they want to make changes
+        const { afterReview } = await inquirer.prompt([
+          {
+            type: 'list',
+            name: 'afterReview',
+            message: 'After reviewing, what would you like to do?',
+            choices: [
+              { name: '✏️  Make changes or refinements', value: 'modify' },
+              { name: '✅ Exit (no changes needed)', value: 'exit' },
+            ],
+          },
+        ]);
+
+        if (afterReview === 'exit') {
+          console.log(chalk.green('No changes needed. Exiting.'));
+          return this.featureData;
+        } else {
+          // Continue to modification flow
+          return await this.conductADRModification(sessionManager, sessionName);
+        }
+      } else if (action === 'modify') {
+        return await this.conductADRModification(sessionManager, sessionName);
+      }
     }
 
     console.log(chalk.green('Ready to start feature planning!'));
@@ -416,5 +459,120 @@ Remember: The title should reflect the architectural decision, not just the feat
       .join('-')
       .replace(/-+/g, '-');
     return `${timestamp}-${safeFeatureName}.md`;
+  }
+
+  async conductADRModification(sessionManager, sessionName) {
+    console.log(chalk.blue('\n✏️  ADR Modification Mode'));
+    console.log(
+      chalk.gray(
+        'You can ask questions about the current ADR, request changes, or explore alternatives.'
+      )
+    );
+    console.log(chalk.gray('Type "done" when you are finished with modifications.'));
+    console.log();
+
+    // Inform the AI about the current state and what we want to do
+    await this.sendMessage(
+      `I would like to review and potentially modify the current ADR. Here is the current ADR content:
+
+${this.featureData.adr_content}
+
+I may want to make changes, explore alternatives, or ask questions about this ADR. Please help me refine it based on my feedback.`
+    );
+
+    // Interactive modification loop
+    let modificationComplete = false;
+    while (!modificationComplete) {
+      console.log();
+
+      const { userInput } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'userInput',
+          message: 'What changes or questions do you have about the ADR? (or "done" to finish):',
+          validate: input => input.trim() !== '' || 'Please provide your feedback or type "done"',
+        },
+      ]);
+
+      if (userInput.toLowerCase() === 'done') {
+        modificationComplete = true;
+        break;
+      }
+
+      // Send user feedback to AI
+      await this.sendMessage(userInput);
+
+      // Save session after each modification interaction
+      if (sessionManager && sessionName) {
+        try {
+          await sessionManager.saveSession(sessionName, this.featureData, this.chatHistory);
+        } catch {
+          console.warn(chalk.yellow('⚠️  Warning: Failed to save session data'));
+        }
+      }
+    }
+
+    // Ask if user wants to update the ADR with the modifications
+    const { updateADR } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'updateADR',
+        message: 'Would you like to generate an updated ADR based on our discussion?',
+        default: true,
+      },
+    ]);
+
+    if (!updateADR) {
+      console.log(chalk.yellow('No changes made to the ADR. Original version preserved.'));
+      return this.featureData;
+    }
+
+    // Generate updated ADR
+    console.log(chalk.yellow('\n📝 Generating updated ADR...'));
+    const updatedAdrResponse = await this.sendMessage(
+      `Based on our discussion and feedback, please generate an updated version of the ADR. Use the same format as before:
+
+# ADR: [Number] - [Title]
+
+## Status
+[Status]
+
+## Context
+[Updated context]
+
+## Decision
+[Updated decision]
+
+## Consequences
+[Updated consequences]
+
+## Implementation Plan
+[Updated implementation plan]
+
+## Alternatives Considered
+[Updated alternatives]
+
+Make sure to incorporate all the changes and improvements we discussed.`
+    );
+
+    // Update feature data with the new ADR content
+    this.featureData.adr_content = updatedAdrResponse;
+    this.featureData.implementation_plan = this.extractImplementationPlan(updatedAdrResponse);
+    this.featureData.adr_title = this.extractADRTitle(updatedAdrResponse);
+    this.featureData.adrFilename = this.generateADRFilename(
+      this.featureData.adr_title || this.featureData.name
+    );
+
+    // Save final updated session state
+    if (sessionManager && sessionName) {
+      try {
+        await sessionManager.saveSession(sessionName, this.featureData, this.chatHistory);
+        console.log(chalk.green('\n✅ ADR updated and session saved successfully!'));
+      } catch {
+        console.warn(chalk.yellow('⚠️  Warning: Failed to save final session data'));
+      }
+    }
+
+    return this.featureData;
   }
 }

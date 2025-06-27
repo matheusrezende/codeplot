@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/matheusrezende/codeplot/compare/v1.2.0...v1.2.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* prevent adr-tools from hanging by setting non-interactive editor ([4819e30](https://github.com/matheusrezende/codeplot/commit/4819e30b4e341770777fe5ad1a23ee8c0871f43f))
+
 # [1.2.0](https://github.com/matheusrezende/codeplot/compare/v1.1.0...v1.2.0) (2025-06-27)
 
 

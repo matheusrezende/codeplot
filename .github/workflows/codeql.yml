@@ -26,6 +26,11 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Setup Volta
+      uses: volta-cli/action@v4
+      with:
+        cache: true
+
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:

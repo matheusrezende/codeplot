@@ -16,6 +16,7 @@ An interactive CLI tool that uses **Gemini 2.5 Pro** to help you plan features a
 - 📝 **ADR Generation**: Automatically creates Architecture Decision Records
 - 🎯 **One Question at a Time**: Focused, clarifying questions with options and recommendations
 - 🏗️ **Implementation Plans**: Step-by-step technical implementation guidance
+- 💾 **Session Management**: Save, resume, and modify planning sessions with persistent state
 - ⚡ **Real-time Streaming**: Watch AI responses appear in real-time with configurable typing speeds
 - 🎨 **Enhanced UX**: Beautiful visual indicators and smooth typing animations
 
@@ -95,6 +96,29 @@ codeplot plan --no-streaming
 # Slow typing speed for presentation mode
 codeplot plan --typing-speed slow
 ```
+
+### Session Management
+
+Codeplot automatically saves your planning sessions and allows you to resume or modify them:
+
+```bash
+# Sessions are automatically saved during planning
+codeplot plan
+
+# When you have completed sessions, you'll be prompted with options:
+# 1. Start a new planning session
+# 2. Review current ADR
+# 3. Modify/refine current ADR
+# 4. Exit
+```
+
+**Session Features:**
+
+- **Auto-save**: Every interaction is automatically saved
+- **Resume**: Continue where you left off if interrupted
+- **Modify**: Refine existing ADRs through additional conversations
+- **Review**: Read completed ADRs before making changes
+- **Interactive Loop**: Seamlessly transition between reviewing and modifying
 
 ### Options
 

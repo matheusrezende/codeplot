@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/matheusrezende/codeplot/compare/v1.3.2...v1.4.0) (2025-06-27)
+
+
+### Features
+
+* add ADR review and modification options for completed sessions ([a3f2da0](https://github.com/matheusrezende/codeplot/commit/a3f2da0716981b1a0401422e8d33ae6ba69f74d1))
+
 ## [1.3.2](https://github.com/matheusrezende/codeplot/compare/v1.3.1...v1.3.2) (2025-06-27)
 
 

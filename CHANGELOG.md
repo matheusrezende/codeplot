@@ -1,3 +1,12 @@
+# [1.3.0](https://github.com/matheusrezende/codeplot/compare/v1.2.2...v1.3.0) (2025-06-27)
+
+
+### Features
+
+* add session persistence configuration ([76c36bc](https://github.com/matheusrezende/codeplot/commit/76c36bc57a22ca35a26ea6aafb7efb7731176085))
+* add session state management to ChatSession ([88fc152](https://github.com/matheusrezende/codeplot/commit/88fc152ba050130ae788315084a449c3c450be7e))
+* implement SessionManager for file-based session persistence ([e502d05](https://github.com/matheusrezende/codeplot/commit/e502d053cf7a647af4d7c2f996f3946be7e637e5))
+
 ## [1.2.2](https://github.com/matheusrezende/codeplot/compare/v1.2.1...v1.2.2) (2025-06-27)
 
 

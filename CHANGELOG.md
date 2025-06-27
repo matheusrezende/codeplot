@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/matheusrezende/codeplot/compare/v1.3.0...v1.3.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* implement proper chat history tracking for session persistence ([29f5c6f](https://github.com/matheusrezende/codeplot/commit/29f5c6f8b8e58bc51b4da24ccab7267970430cea))
+
 # [1.3.0](https://github.com/matheusrezende/codeplot/compare/v1.2.2...v1.3.0) (2025-06-27)
 
 

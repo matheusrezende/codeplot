@@ -174,3 +174,6 @@ yarn-error.log
 
 # pnpm
 .pnpm-debug.log*
+
+# Codeplot sessions
+.codeplot/

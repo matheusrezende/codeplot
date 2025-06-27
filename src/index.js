@@ -17,6 +17,7 @@ program
   .option('-p, --project-path <path>', 'Path to the project repository', process.cwd())
   .option('-k, --api-key <key>', 'Gemini API key (or set GEMINI_API_KEY env var)')
   .option('-o, --output-dir <dir>', 'Output directory for ADRs', './doc/adr')
+  .option('-s, --session <path>', 'Load specific session file to resume conversation')
   .option('--no-streaming', 'Disable streaming responses (show all at once)')
   .option('--typing-speed <speed>', 'Typing speed for streaming: fast, normal, slow', 'normal')
   .action(async options => {

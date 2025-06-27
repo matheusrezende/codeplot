@@ -145,6 +145,10 @@ jobs:
 
       - name: Prepare GitHub Package
         run: |
+          # Get version from main package.json
+          VERSION=$(node -p "require('./package.json').version")
+          # Update package-github.json with current version
+          node -e "const pkg = require('./package-github.json'); pkg.version = process.argv[1]; require('fs').writeFileSync('./package-github.json', JSON.stringify(pkg, null, 2));" "$VERSION"
           cp package-github.json package.json
           cp .npmrc-github .npmrc
 

@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/matheusrezende/codeplot/compare/v1.0.0...v1.1.0) (2025-06-27)
+
+
+### Features
+
+* enhance ADR generation and repo packaging with AI-driven improvements ([2ee0a9a](https://github.com/matheusrezende/codeplot/commit/2ee0a9ad5b0c64bacd1087a32573f95d25bd2df3))
+
 # 1.0.0 (2025-06-27)
 
 

@@ -132,13 +132,25 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
   }
 
   async conductFeaturePlanning(sessionManager, sessionName = null) {
+    // Check if this session already has a completed ADR
+    if (sessionName && this.featureData.adr_content) {
+      console.log(chalk.blue('This session already has a completed ADR!'));
+      console.log(chalk.gray(`Feature: ${this.featureData.description}`));
+      console.log(chalk.gray(`ADR: ${this.featureData.adr_title || this.featureData.name}`));
+      console.log(
+        chalk.yellow('\nThe ADR for this feature is complete. No further planning needed.')
+      );
+      console.log();
+      return this.featureData;
+    }
+
     console.log(chalk.green('Ready to start feature planning!'));
     console.log(chalk.gray('Type your feature description or type "done" when finished.'));
     console.log();
 
     // If resuming session and already have feature data, skip initial prompt
     let featureDescription;
-    if (sessionName && this.featureData.description) {
+    if (sessionName && this.featureData.description && !this.featureData.adr_content) {
       featureDescription = this.featureData.description;
       console.log(chalk.green(`Continuing with feature: ${this.featureData.description}`));
     } else {

@@ -7,7 +7,12 @@ export class ChatSession {
     this.model = model;
     this.chatSession = null;
     this.streamingEnabled = options.streaming !== false; // Default to true
-    this.typingSpeed = options.typingSpeed || 'normal'; // 'fast', 'normal', 'slow'
+    this.typingSpeed = options.typingSpeed || 'normal';
+
+    // Track chat history manually for session persistence
+    this.chatHistory = [];
+
+    // Initialize feature data structure
     this.featureData = {
       name: '',
       description: '',
@@ -16,6 +21,7 @@ export class ChatSession {
       implementation_plan: '',
       adr_content: '',
       adrFilename: '',
+      adr_title: '',
     };
   }
 
@@ -23,12 +29,13 @@ export class ChatSession {
     if (sessionData) {
       // Resuming from existing session
       this.featureData = sessionData.featureData;
+      this.chatHistory = sessionData.chatHistory || [];
 
       const spinner = ora('Restoring conversation context...').start();
 
       try {
         this.chatSession = this.model.startChat({
-          history: sessionData.chatHistory,
+          history: this.chatHistory,
           generationConfig: {
             temperature: 0.7,
           },
@@ -86,6 +93,12 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
           },
         });
 
+        // Add system prompt to history
+        this.chatHistory.push({
+          role: 'user',
+          parts: [{ text: systemPrompt }],
+        });
+
         const result = await this.chatSession.sendMessageStream(systemPrompt);
 
         // Stop spinner and prepare for streaming
@@ -100,6 +113,12 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
           process.stdout.write(chalk.gray(chunkText));
           response += chunkText;
         }
+
+        // Add AI analysis response to history
+        this.chatHistory.push({
+          role: 'model',
+          parts: [{ text: response }],
+        });
 
         console.log(); // Add newline after streaming
         console.log();
@@ -185,11 +204,7 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
       // Save session after each user response
       if (sessionManager && sessionName) {
         try {
-          await sessionManager.saveSession(
-            sessionName,
-            this.featureData,
-            this.chatSession.getHistory()
-          );
+          await sessionManager.saveSession(sessionName, this.featureData, this.chatHistory);
         } catch {
           console.warn(chalk.yellow('⚠️  Warning: Failed to save session data'));
         }
@@ -263,11 +278,7 @@ Remember: The title should reflect the architectural decision, not just the feat
     // Save final session state
     if (sessionManager && sessionName) {
       try {
-        await sessionManager.saveSession(
-          sessionName,
-          this.featureData,
-          this.chatSession.getHistory()
-        );
+        await sessionManager.saveSession(sessionName, this.featureData, this.chatHistory);
       } catch {
         console.warn(chalk.yellow('⚠️  Warning: Failed to save final session data'));
       }
@@ -280,6 +291,12 @@ Remember: The title should reflect the architectural decision, not just the feat
     const spinner = ora('AI is thinking...').start();
 
     try {
+      // Add user message to history
+      this.chatHistory.push({
+        role: 'user',
+        parts: [{ text: message }],
+      });
+
       const result = await this.chatSession.sendMessageStream(message);
 
       // Stop spinner and prepare for streaming
@@ -323,6 +340,12 @@ Remember: The title should reflect the architectural decision, not just the feat
 
         fullResponse += chunkText;
       }
+
+      // Add AI response to history
+      this.chatHistory.push({
+        role: 'model',
+        parts: [{ text: fullResponse }],
+      });
 
       console.log(); // Add newline after streaming
       return fullResponse;

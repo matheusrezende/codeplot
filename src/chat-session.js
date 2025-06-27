@@ -54,7 +54,6 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
       this.chatSession = this.model.startChat({
         history: [],
         generationConfig: {
-          maxOutputTokens: 2048,
           temperature: 0.7,
         },
       });

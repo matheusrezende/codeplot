@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/matheusrezende/codeplot/compare/v1.1.0...v1.2.0) (2025-06-27)
+
+
+### Features
+
+* update default ADR path to match adr-tools standard ([e16ab5b](https://github.com/matheusrezende/codeplot/commit/e16ab5b560bed0be4ac948297b62c64848068ae3))
+
 # [1.1.0](https://github.com/matheusrezende/codeplot/compare/v1.0.0...v1.1.0) (2025-06-27)
 
 

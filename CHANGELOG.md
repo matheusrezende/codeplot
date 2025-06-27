@@ -1,3 +1,10 @@
+## [1.5.1](https://github.com/matheusrezende/codeplot/compare/v1.5.0...v1.5.1) (2025-06-27)
+
+
+### Bug Fixes
+
+* use GH_TOKEN for GitHub Packages authentication ([2289033](https://github.com/matheusrezende/codeplot/commit/228903306fe766ae5cef73272f59b27c256b8fc2))
+
 # [1.5.0](https://github.com/matheusrezende/codeplot/compare/v1.4.0...v1.5.0) (2025-06-27)
 
 

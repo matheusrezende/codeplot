@@ -16,10 +16,10 @@ program
   .description('Start interactive feature planning session')
   .option('-p, --project-path <path>', 'Path to the project repository', process.cwd())
   .option('-k, --api-key <key>', 'Gemini API key (or set GEMINI_API_KEY env var)')
-  .option('-o, --output-dir <dir>', 'Output directory for ADRs', './docs/adrs')
+  .option('-o, --output-dir <dir>', 'Output directory for ADRs', './doc/adr')
   .option('--no-streaming', 'Disable streaming responses (show all at once)')
   .option('--typing-speed <speed>', 'Typing speed for streaming: fast, normal, slow', 'normal')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const architect = new FeatureArchitect(options);
       await architect.start();

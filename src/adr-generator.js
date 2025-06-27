@@ -125,12 +125,27 @@ export class ADRGenerator {
 
   async initializeADRDirectory() {
     try {
-      // Check if ADR directory is already initialized
+      // Check if ADR directory is already initialized by looking for existing ADR files
+      const adrFiles = await fs.readdir(this.outputDir);
+      const existingADRs = adrFiles.filter(
+        file => file.match(/^\d{4}-.*\.md$/) && file !== '0001-record-architecture-decisions.md'
+      );
+
+      // Also check for the default initialization file
+      const hasInitFile = adrFiles.some(file => file === '0001-record-architecture-decisions.md');
+
+      // If we have existing ADRs or the init file, don't run adr init again
+      if (existingADRs.length > 0 || hasInitFile) {
+        return; // Already initialized
+      }
+
+      // Directory is empty or doesn't exist, safe to initialize
       const docDir = path.join(this.outputDir, '..');
       await execAsync('adr init', { cwd: docDir });
     } catch {
-      // Directory might already be initialized, or adr-tools not available
-      // We'll handle this gracefully
+      // Directory might not exist yet, or adr-tools not available
+      // We'll handle this gracefully - ensure directory exists for manual generation
+      await fs.ensureDir(this.outputDir);
     }
   }
 }

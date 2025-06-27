@@ -1,3 +1,17 @@
+# [1.5.0](https://github.com/matheusrezende/codeplot/compare/v1.4.0...v1.5.0) (2025-06-27)
+
+
+### Bug Fixes
+
+* prevent duplicate ADR template files from adr-tools initialization ([a599955](https://github.com/matheusrezende/codeplot/commit/a59995591cea2362029e79b242e029f443672ac6))
+* update workflow to use Personal Access Token for branch protection bypass ([15687a0](https://github.com/matheusrezende/codeplot/commit/15687a0c088a01eeb2548130430d578ac9aec50d))
+
+
+### Features
+
+* add GitHub Packages publishing support ([b718af4](https://github.com/matheusrezende/codeplot/commit/b718af457b972cff427e7d85784064b2927959c2))
+* test GitHub Packages publishing setup ([fdc2973](https://github.com/matheusrezende/codeplot/commit/fdc297325a3f4c0580df1772584691b829111b66))
+
 # [1.4.0](https://github.com/matheusrezende/codeplot/compare/v1.3.2...v1.4.0) (2025-06-27)
 
 

@@ -1,16 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import inquirer from 'inquirer';
 import chalk from 'chalk';
-import ora from 'ora';
-import fs from 'fs-extra';
 import path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { RepoPackager } from './repo-packager.js';
 import { ChatSession } from './chat-session.js';
 import { ADRGenerator } from './adr-generator.js';
-
-const execAsync = promisify(exec);
 
 export class FeatureArchitect {
   constructor(options) {
@@ -19,18 +12,20 @@ export class FeatureArchitect {
     this.outputDir = options.outputDir;
     this.streaming = options.streaming !== false; // Default to true
     this.typingSpeed = options.typingSpeed || 'normal';
-    
+
     if (!this.apiKey) {
-      throw new Error('Gemini API key is required. Set GEMINI_API_KEY environment variable or use --api-key option.');
+      throw new Error(
+        'Gemini API key is required. Set GEMINI_API_KEY environment variable or use --api-key option.'
+      );
     }
-    
+
     this.genAI = new GoogleGenerativeAI(this.apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-    
+
     this.repoPackager = new RepoPackager(this.projectPath);
     this.chatSession = new ChatSession(this.model, {
       streaming: this.streaming,
-      typingSpeed: this.typingSpeed
+      typingSpeed: this.typingSpeed,
     });
     this.adrGenerator = new ADRGenerator(this.outputDir);
   }
@@ -55,7 +50,11 @@ export class FeatureArchitect {
 
       // Step 3: Interactive feature planning
       console.log(chalk.yellow('💬 Step 3: Interactive feature planning session'));
-      console.log(chalk.gray('The AI will ask you clarifying questions to understand your feature requirements.'));
+      console.log(
+        chalk.gray(
+          'The AI will ask you clarifying questions to understand your feature requirements.'
+        )
+      );
       console.log();
 
       const featureData = await this.chatSession.conductFeaturePlanning();
@@ -67,8 +66,9 @@ export class FeatureArchitect {
       console.log();
 
       console.log(chalk.blue('🎉 Feature planning completed!'));
-      console.log(chalk.gray(`ADR saved to: ${path.join(this.outputDir, featureData.adrFilename)}`));
-
+      console.log(
+        chalk.gray(`ADR saved to: ${path.join(this.outputDir, featureData.adrFilename)}`)
+      );
     } catch (error) {
       console.error(chalk.red('❌ Error during feature planning:'), error.message);
       throw error;

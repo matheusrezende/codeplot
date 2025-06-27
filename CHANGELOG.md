@@ -1,3 +1,10 @@
+## [1.5.2](https://github.com/matheusrezende/codeplot/compare/v1.5.1...v1.5.2) (2025-06-27)
+
+
+### Bug Fixes
+
+* sync version from package.json to package-github.json before publishing ([c47b618](https://github.com/matheusrezende/codeplot/commit/c47b618f949bd3636f4d0d16c214301d611bebde))
+
 ## [1.5.1](https://github.com/matheusrezende/codeplot/compare/v1.5.0...v1.5.1) (2025-06-27)
 
 

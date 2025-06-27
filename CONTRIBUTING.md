@@ -96,9 +96,42 @@ test: add unit tests for repo packager
 
 ## Development Setup
 
+### Prerequisites
+
+- **Node.js** >=20.0.0
+- **Volta** (recommended for automatic version management)
+
+### Setup with Volta (Recommended)
+
 ```bash
+# Install Volta if you haven't already
+curl https://get.volta.sh | bash
+
 # Clone your fork
 git clone https://github.com/your-username/codeplot.git
+cd codeplot
+
+# Volta will automatically use the pinned Node.js version (22.17.0 LTS)
+
+# Install dependencies
+npm install
+
+# Make it globally available for testing
+npm link
+
+# Test your changes
+codeplot init
+```
+
+### Manual Setup
+
+```bash
+# Ensure Node.js >=20.0.0 is installed
+node --version
+
+# Clone your fork
+git clone https://github.com/your-username/codeplot.git
+cd codeplot
 
 # Install dependencies
 npm install

@@ -22,30 +22,52 @@ An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and g
 
 ## Prerequisites
 
-1. **Node.js** (>=18.0.0)
+1. **Node.js** (>=20.0.0) - This project uses Volta for Node.js version management
 2. **Gemini API Key** - Get one from [Google AI Studio](https://aistudio.google.com/)
 3. **repomix** (optional - will be installed automatically if missing)
 4. **adr-tools** (optional - for proper ADR management)
+5. **Volta** (recommended) - For automatic Node.js version management
 
 ## Installation
 
-1. Clone or download this repository
-2. Install dependencies:
+### Option 1: With Volta (Recommended)
+
+1. Install [Volta](https://volta.sh/) if you haven't already:
+
+   ```bash
+   curl https://get.volta.sh | bash
+   ```
+
+2. Clone or download this repository:
+
+   ```bash
+   git clone https://github.com/matheus/codeplot.git
+   cd codeplot
+   ```
+
+3. Volta will automatically use the pinned Node.js version (22.17.0 LTS)
+
+4. Install dependencies:
 
    ```bash
    npm install
    ```
 
-3. Make the CLI globally available:
+5. Make the CLI globally available:
 
    ```bash
    npm link
    ```
 
-4. Set your Gemini API key:
+6. Set your Gemini API key:
    ```bash
    export GEMINI_API_KEY="your_api_key_here"
    ```
+
+### Option 2: Manual Node.js Setup
+
+1. Ensure you have Node.js >=20.0.0 installed
+2. Follow steps 2-6 from Option 1
 
 ## Usage
 
@@ -158,11 +180,27 @@ Generated ADRs follow this structure:
 
 ## Development
 
-To run in development mode:
+### With Volta (Recommended)
+
+This project uses Volta to pin Node.js and npm versions. When you enter the project directory, Volta will automatically switch to the correct versions (Node.js 22.17.0 LTS, npm 10.9.2).
+
+### Running in Development Mode
 
 ```bash
 npm run dev
 ```
+
+### Available Scripts
+
+- `npm run dev` - Run with file watching
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix ESLint issues
+- `npm run format` - Format code with Prettier
+- `npm run format:check` - Check code formatting
+- `npm run validate` - Run all checks (lint, format, test)
 
 ## Troubleshooting
 

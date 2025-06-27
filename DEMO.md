@@ -7,18 +7,21 @@ The CLI now features **real-time streaming** that makes the AI responses appear 
 ## Streaming Features
 
 ### 🎨 **Visual Enhancements**
+
 - Real-time character-by-character typing for short responses
 - Smooth chunk-based streaming for longer responses
 - Beautiful visual indicators and spinners
 - Color-coded responses for better readability
 
 ### ⚡ **Performance Options**
+
 - **Fast Mode**: Quick responses for productivity
 - **Normal Mode**: Balanced typing speed (default)
 - **Slow Mode**: Perfect for presentations or demos
 - **No Streaming**: Instant responses for power users
 
 ### 🎯 **Smart Streaming Logic**
+
 - Short chunks (< 50 chars): Character-by-character typing
 - Long chunks: Faster chunk-based display
 - Configurable delays based on typing speed
@@ -64,7 +67,8 @@ The streaming uses Gemini's `sendMessageStream` API with custom display logic:
 4. **Show instant mode**: `codeplot plan --no-streaming`
 
 Each mode provides a different experience suitable for different scenarios:
+
 - **Fast**: Daily usage, productivity-focused
-- **Normal**: General use, balanced experience  
+- **Normal**: General use, balanced experience
 - **Slow**: Presentations, demos, learning
 - **Instant**: Power users, when speed is critical

@@ -1,5 +1,11 @@
 # Codeplot
 
+[![npm version](https://badge.fury.io/js/codeplot.svg)](https://badge.fury.io/js/codeplot)
+[![CI/CD Pipeline](https://github.com/matheus/codeplot/actions/workflows/ci.yml/badge.svg)](https://github.com/matheus/codeplot/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/matheus/codeplot/branch/main/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/matheus/codeplot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
+
 🧠 Plot your features with AI-powered planning and architecture decisions
 
 An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and generate Architecture Decision Records (ADRs) for your projects.
@@ -25,11 +31,13 @@ An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and g
 
 1. Clone or download this repository
 2. Install dependencies:
+
    ```bash
    npm install
    ```
 
 3. Make the CLI globally available:
+
    ```bash
    npm link
    ```
@@ -42,11 +50,13 @@ An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and g
 ## Usage
 
 ### Initialize the CLI
+
 ```bash
 codeplot init
 ```
 
 ### Plan a Feature
+
 ```bash
 # Default with streaming enabled
 codeplot plan --project-path /path/to/your/project
@@ -62,6 +72,7 @@ codeplot plan --typing-speed slow
 ```
 
 ### Options
+
 - `-p, --project-path <path>`: Path to your project repository (default: current directory)
 - `-k, --api-key <key>`: Gemini API key (or set GEMINI_API_KEY env var)
 - `-o, --output-dir <dir>`: Output directory for ADRs (default: ./docs/adrs)
@@ -127,6 +138,7 @@ ADR saved to: ./docs/adrs/2025-06-27-user-authentication-system.md
 ## System Prompt
 
 The AI uses a carefully crafted system prompt that focuses on:
+
 - Software architecture and technical implementation
 - One clarifying question at a time
 - Providing options with recommendations
@@ -136,6 +148,7 @@ The AI uses a carefully crafted system prompt that focuses on:
 ## Output Structure
 
 Generated ADRs follow this structure:
+
 - **Status**: Proposed/Accepted/Rejected
 - **Context**: Background and motivation
 - **Decision**: The architectural choice made
@@ -146,6 +159,7 @@ Generated ADRs follow this structure:
 ## Development
 
 To run in development mode:
+
 ```bash
 npm run dev
 ```
@@ -153,13 +167,17 @@ npm run dev
 ## Troubleshooting
 
 ### repomix not found
+
 The tool will automatically install repomix if it's missing. If you encounter issues:
+
 ```bash
 npm install -g repomix
 ```
 
 ### adr-tools not found
+
 ADRs will still be generated without adr-tools, but for proper ADR management:
+
 ```bash
 # npm
 npm install -g adr-tools
@@ -169,7 +187,9 @@ brew install adr-tools
 ```
 
 ### API Rate Limits
+
 If you hit Gemini API rate limits, the tool will show appropriate error messages. Consider:
+
 - Using shorter sessions
 - Spreading usage over time
 - Checking your API quota

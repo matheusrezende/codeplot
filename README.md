@@ -238,3 +238,5 @@ If you hit Gemini API rate limits, the tool will show appropriate error messages
 ## License
 
 MIT
+
+# Testing GitHub Packages with updated PAT scopes

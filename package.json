@@ -1,0 +1,32 @@
+{
+  "name": "codeplot",
+  "version": "1.0.0",
+  "description": "Interactive CLI tool for feature planning and ADR generation using Gemini 2.5 Pro",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "codeplot": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["cli", "codeplot", "architecture", "adr", "feature-planning", "gemini", "ai", "planning", "development", "plotting"],
+  "author": "Matheus",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "commander": "^12.1.0",
+    "inquirer": "^10.2.2",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0",
+    "fs-extra": "^11.2.0",
+    "child_process": "^1.0.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

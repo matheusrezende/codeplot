@@ -2,13 +2,12 @@
 
 [![npm version](https://badge.fury.io/js/codeplot.svg)](https://badge.fury.io/js/codeplot)
 [![CI/CD Pipeline](https://github.com/matheusrezende/codeplot/actions/workflows/ci.yml/badge.svg)](https://github.com/matheusrezende/codeplot/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/matheusrezende/codeplot/branch/main/graph/badge.svg?token=YOUR_CODECOV_TOKEN)](https://codecov.io/gh/matheusrezende/codeplot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
 
-🧠 Plot your features with AI-powered planning and architecture decisions
+> 🧠 **Plot your features with AI-powered planning and architecture decisions**
 
-An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and generate Architecture Decision Records (ADRs) for your projects.
+An interactive CLI tool that uses **Gemini 2.5 Pro** to help you plan features and generate Architecture Decision Records (ADRs) for your projects. Get AI-powered technical guidance, implementation plans, and properly structured ADRs without leaving your terminal.
 
 ## Features
 
@@ -30,44 +29,48 @@ An interactive CLI tool that uses Gemini 2.5 Pro to help you plan features and g
 
 ## Installation
 
-### Option 1: With Volta (Recommended)
+### Global Installation (Recommended)
 
-1. Install [Volta](https://volta.sh/) if you haven't already:
+Install Codeplot globally using npm:
 
-   ```bash
-   curl https://get.volta.sh | bash
-   ```
+```bash
+npm install -g codeplot
+```
 
-2. Clone or download this repository:
+### Using npx (No Installation Required)
 
-   ```bash
-   git clone https://github.com/matheusrezende/codeplot.git
-   cd codeplot
-   ```
+Run Codeplot without installing:
 
-3. Volta will automatically use the pinned Node.js version (22.17.0 LTS)
+```bash
+npx codeplot init
+npx codeplot plan --project-path /path/to/your/project
+```
 
-4. Install dependencies:
+### API Key Setup
 
-   ```bash
-   npm install
-   ```
+Set your Gemini API key as an environment variable:
 
-5. Make the CLI globally available:
+```bash
+export GEMINI_API_KEY="your_api_key_here"
 
-   ```bash
-   npm link
-   ```
+# Or add to your shell profile for persistence
+echo 'export GEMINI_API_KEY="your_api_key_here"' >> ~/.bashrc
+# or ~/.zshrc for zsh users
+```
 
-6. Set your Gemini API key:
-   ```bash
-   export GEMINI_API_KEY="your_api_key_here"
-   ```
+### Dependencies
 
-### Option 2: Manual Node.js Setup
+Codeplot will automatically install missing dependencies:
 
-1. Ensure you have Node.js >=20.0.0 installed
-2. Follow steps 2-6 from Option 1
+- **repomix**: For repository analysis (installed automatically if missing)
+- **adr-tools**: For proper ADR management (optional, see [installation guide](https://github.com/npryce/adr-tools#installation))
+
+```bash
+# Optional: Install adr-tools for enhanced ADR management
+npm install -g adr-tools
+# or on macOS with Homebrew
+brew install adr-tools
+```
 
 ## Usage
 
@@ -97,7 +100,7 @@ codeplot plan --typing-speed slow
 
 - `-p, --project-path <path>`: Path to your project repository (default: current directory)
 - `-k, --api-key <key>`: Gemini API key (or set GEMINI_API_KEY env var)
-- `-o, --output-dir <dir>`: Output directory for ADRs (default: ./docs/adrs)
+- `-o, --output-dir <dir>`: Output directory for ADRs (default: ./doc/adr)
 - `--no-streaming`: Disable streaming responses (show all at once)
 - `--typing-speed <speed>`: Typing speed for streaming: `fast`, `normal`, `slow` (default: normal)
 

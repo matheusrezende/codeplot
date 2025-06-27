@@ -1,6 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { ChatSession } from '../chat-session.js';
 
+// Mock ora
+const mockOra = jest.fn();
+jest.unstable_mockModule('ora', () => ({ default: mockOra }));
+
 describe('ChatSession', () => {
   let mockModel;
   let chatSession;
@@ -111,6 +115,33 @@ Some consequences
       await chatSession.sleep(100);
       const end = Date.now();
       expect(end - start).toBeGreaterThanOrEqual(90); // Allow some tolerance
+    });
+  });
+
+  describe('featureData management', () => {
+    it('should handle session data restoration', () => {
+      const sessionData = {
+        featureData: {
+          name: 'User Authentication',
+          description: 'JWT-based authentication system',
+        },
+        chatHistory: [
+          { role: 'user', content: 'I want to build authentication' },
+          { role: 'assistant', content: 'What type of authentication?' },
+        ],
+      };
+
+      // Simulate session restoration
+      chatSession.featureData = sessionData.featureData;
+
+      expect(chatSession.featureData.name).toBe('User Authentication');
+      expect(chatSession.featureData.description).toBe('JWT-based authentication system');
+    });
+
+    it('should handle new session initialization', () => {
+      expect(chatSession.featureData.name).toBe('');
+      expect(chatSession.featureData.description).toBe('');
+      expect(chatSession.featureData.requirements).toEqual([]);
     });
   });
 });

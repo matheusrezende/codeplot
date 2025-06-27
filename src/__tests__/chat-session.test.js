@@ -78,6 +78,33 @@ Some consequences
     });
   });
 
+  describe('extractADRTitle', () => {
+    it('should extract title from ADR header', () => {
+      const adrContent =
+        '# ADR: 001 - Implement JWT Authentication for User Management\n\nSome content';
+      const title = chatSession.extractADRTitle(adrContent);
+      expect(title).toBe('Implement JWT Authentication for User Management');
+    });
+
+    it('should handle different number formats', () => {
+      const adrContent = '# ADR: 42 - Use Redis Caching for Session Storage\n\nSome content';
+      const title = chatSession.extractADRTitle(adrContent);
+      expect(title).toBe('Use Redis Caching for Session Storage');
+    });
+
+    it('should return null if no title found', () => {
+      const adrContent = 'No valid ADR title here';
+      const title = chatSession.extractADRTitle(adrContent);
+      expect(title).toBe(null);
+    });
+
+    it('should fallback to markdown header', () => {
+      const adrContent = '# Some Header Title\n\nSome content';
+      const title = chatSession.extractADRTitle(adrContent);
+      expect(title).toBe('Some Header Title');
+    });
+  });
+
   describe('sleep', () => {
     it('should resolve after specified time', async () => {
       const start = Date.now();

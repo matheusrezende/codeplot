@@ -164,13 +164,16 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
       }
     }
 
-    // Generate final ADR and implementation plan
-    console.log(chalk.yellow('\n📝 Generating ADR and implementation plan...'));
-
+    // Generate the final ADR
+    console.log(chalk.yellow('\n📝 Generating Architecture Decision Record...'));
     const adrResponse = await this.sendMessage(
-      `Based on our discussion, please generate a comprehensive ADR (Architecture Decision Record) and implementation plan. Format it as follows:
+      `Based on our conversation, please generate a comprehensive Architecture Decision Record (ADR) for the "${this.featureData.name}" feature.
 
-# ADR: ${this.featureData.name}
+First, create a clear, concise title for this ADR that captures the essence of the architectural decision (not just the feature name). The title should be in the format: "[Action/Decision] [Technology/Component] for [Purpose]"
+
+Then use this exact format:
+
+# ADR: [Number] - [Your Generated Title]
 
 ## Status
 Proposed
@@ -188,13 +191,20 @@ Proposed
 [Step-by-step implementation plan with specific files/modules to change]
 
 ## Alternatives Considered
-[Alternative approaches that were considered and why they were rejected]`
+[Alternative approaches that were considered and why they were rejected]
+
+Remember: The title should reflect the architectural decision, not just the feature name. For example:
+- "Implement JWT Authentication for User Management"
+- "Adopt Microservices Architecture for Payment Processing"
+- "Use Redis Caching for Session Management"`
     );
 
     this.featureData.adr_content = adrResponse;
     this.featureData.implementation_plan = this.extractImplementationPlan(adrResponse);
-    this.featureData.adrFilename = this.generateADRFilename(this.featureData.name);
-
+    this.featureData.adr_title = this.extractADRTitle(adrResponse);
+    this.featureData.adrFilename = this.generateADRFilename(
+      this.featureData.adr_title || this.featureData.name
+    );
     return this.featureData;
   }
 
@@ -276,8 +286,32 @@ Proposed
     return planMatch ? planMatch[1].trim() : '';
   }
 
+  extractADRTitle(adrContent) {
+    // Extract title from ADR content - look for the pattern "# ADR: [Number] - [Title]"
+    const titleMatch = adrContent.match(/# ADR:\s*\d+\s*-\s*(.+)/);
+    if (titleMatch) {
+      return titleMatch[1].trim();
+    }
+
+    // Fallback: look for any markdown header that looks like a title
+    const headerMatch = adrContent.match(/^#\s*(.+)$/m);
+    if (headerMatch) {
+      return headerMatch[1].trim().replace(/^ADR:\s*\d*\s*-?\s*/, '');
+    }
+
+    return null;
+  }
+
   generateADRFilename(featureName) {
     const timestamp = new Date().toISOString().split('T')[0];
-    return `${timestamp}-${featureName}.md`;
+    const safeFeatureName = featureName
+      .toLowerCase()
+      .replace(/[^a-z0-9-\s]/g, '')
+      .trim()
+      .split(/\s+/)
+      .slice(0, 5)
+      .join('-')
+      .replace(/-+/g, '-');
+    return `${timestamp}-${safeFeatureName}.md`;
   }
 }

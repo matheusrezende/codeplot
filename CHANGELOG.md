@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/matheusrezende/codeplot/compare/v1.2.1...v1.2.2) (2025-06-27)
+
+
+### Bug Fixes
+
+* remove maxOutputTokens limit to prevent AI response truncation ([d93eecc](https://github.com/matheusrezende/codeplot/commit/d93eecc907c06f941f0bfc6783b775526c8af773))
+
 ## [1.2.1](https://github.com/matheusrezende/codeplot/compare/v1.2.0...v1.2.1) (2025-06-27)
 
 

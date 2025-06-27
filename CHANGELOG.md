@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/matheusrezende/codeplot/compare/v1.3.1...v1.3.2) (2025-06-27)
+
+
+### Bug Fixes
+
+* prevent resuming completed ADR sessions from restarting planning ([f8771d5](https://github.com/matheusrezende/codeplot/commit/f8771d57f12c5b814549d6ee7d6379e71cb978c1))
+
 ## [1.3.1](https://github.com/matheusrezende/codeplot/compare/v1.3.0...v1.3.1) (2025-06-27)
 
 

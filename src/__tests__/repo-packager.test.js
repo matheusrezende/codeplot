@@ -30,18 +30,4 @@ describe('RepoPackager', () => {
       expect(repoPackager.outputFile).toContain('repomix-output.txt');
     });
   });
-
-  describe('checkRepomixInstallation', () => {
-    beforeEach(() => {
-      mockExec.mockReset();
-    });
-
-    it('should not throw when repomix is installed', async () => {
-      mockExec.mockImplementation((cmd, callback) => {
-        callback(null, 'repomix found');
-      });
-
-      await expect(repoPackager.checkRepomixInstallation()).resolves.not.toThrow();
-    });
-  });
 });

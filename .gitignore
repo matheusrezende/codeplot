@@ -111,6 +111,9 @@ Thumbs.db
 # Repomix output files
 repomix-output.txt
 
+# Test ADR files
+docs/
+
 # Test coverage
 coverage/
 .nyc_output/

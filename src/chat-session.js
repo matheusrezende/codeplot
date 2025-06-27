@@ -19,8 +19,36 @@ export class ChatSession {
     };
   }
 
-  async initialize(codebaseContent) {
-    const systemPrompt = `You are a tech lead focused on software architecture and feature planning.
+  async initialize(codebaseContent, sessionData = null) {
+    if (sessionData) {
+      // Resuming from existing session
+      this.featureData = sessionData.featureData;
+
+      const spinner = ora('Restoring conversation context...').start();
+
+      try {
+        this.chatSession = this.model.startChat({
+          history: sessionData.chatHistory,
+          generationConfig: {
+            temperature: 0.7,
+          },
+        });
+
+        spinner.succeed('Session restored successfully');
+        console.log(chalk.green(`📝 Resuming: ${this.featureData.name || 'Unnamed Feature'}`));
+        if (this.featureData.description) {
+          console.log(chalk.gray(`Description: ${this.featureData.description}`));
+        }
+        console.log();
+
+        return 'Session restored';
+      } catch (error) {
+        spinner.fail('Failed to restore session');
+        throw error;
+      }
+    } else {
+      // Starting new session
+      const systemPrompt = `You are a tech lead focused on software architecture and feature planning.
 
 I will give you access to my codebase. Your job is to:
 
@@ -48,58 +76,72 @@ ${codebaseContent}
 
 Please analyze the codebase first, then confirm you're ready to help me plan a feature. Provide a brief summary of what you understand about the current architecture and technologies used.`;
 
-    const spinner = ora('Analyzing codebase...').start();
+      const spinner = ora('Analyzing codebase...').start();
 
-    try {
-      this.chatSession = this.model.startChat({
-        history: [],
-        generationConfig: {
-          temperature: 0.7,
-        },
-      });
+      try {
+        this.chatSession = this.model.startChat({
+          history: [],
+          generationConfig: {
+            temperature: 0.7,
+          },
+        });
 
-      const result = await this.chatSession.sendMessageStream(systemPrompt);
+        const result = await this.chatSession.sendMessageStream(systemPrompt);
 
-      // Stop spinner and prepare for streaming
-      spinner.succeed('Codebase analyzed');
-      console.log(chalk.blue('🤖 AI Analysis:'));
+        // Stop spinner and prepare for streaming
+        spinner.succeed('Codebase analyzed');
+        console.log(chalk.blue('🤖 AI Analysis:'));
 
-      let response = '';
+        let response = '';
 
-      // Stream the response
-      for await (const chunk of result.stream) {
-        const chunkText = chunk.text();
-        process.stdout.write(chalk.gray(chunkText));
-        response += chunkText;
+        // Stream the response
+        for await (const chunk of result.stream) {
+          const chunkText = chunk.text();
+          process.stdout.write(chalk.gray(chunkText));
+          response += chunkText;
+        }
+
+        console.log(); // Add newline after streaming
+        console.log();
+
+        return response;
+      } catch (error) {
+        spinner.fail('Failed to analyze codebase');
+        throw error;
       }
-
-      console.log(); // Add newline after streaming
-      console.log();
-
-      return response;
-    } catch (error) {
-      spinner.fail('Failed to analyze codebase');
-      throw error;
     }
   }
 
-  async conductFeaturePlanning() {
+  async conductFeaturePlanning(sessionManager, sessionName = null) {
     console.log(chalk.green('Ready to start feature planning!'));
     console.log(chalk.gray('Type your feature description or type "done" when finished.'));
     console.log();
 
-    // Get initial feature description
-    const { featureDescription } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'featureDescription',
-        message: 'What feature would you like to build?',
-        validate: input => input.trim() !== '' || 'Please provide a feature description',
-      },
-    ]);
+    // If resuming session and already have feature data, skip initial prompt
+    let featureDescription;
+    if (sessionName && this.featureData.description) {
+      featureDescription = this.featureData.description;
+      console.log(chalk.green(`Continuing with feature: ${this.featureData.description}`));
+    } else {
+      // Get initial feature description
+      const { featureDescription: userInput } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'featureDescription',
+          message: 'What feature would you like to build?',
+          validate: input => input.trim() !== '' || 'Please provide a feature description',
+        },
+      ]);
 
-    this.featureData.name = this.extractFeatureName(featureDescription);
-    this.featureData.description = featureDescription;
+      featureDescription = userInput;
+      this.featureData.name = this.extractFeatureName(featureDescription);
+      this.featureData.description = featureDescription;
+
+      // Generate session name if this is a new session
+      if (!sessionName) {
+        sessionName = sessionManager.generateSessionName(featureDescription);
+      }
+    }
 
     console.log(chalk.blue('\n🤖 Starting interactive planning session...'));
     console.log(
@@ -139,6 +181,19 @@ Please analyze the codebase first, then confirm you're ready to help me plan a f
 
       // Get next AI question or final summary
       aiResponse = await this.sendMessage(userResponse);
+
+      // Save session after each user response
+      if (sessionManager && sessionName) {
+        try {
+          await sessionManager.saveSession(
+            sessionName,
+            this.featureData,
+            this.chatSession.getHistory()
+          );
+        } catch {
+          console.warn(chalk.yellow('⚠️  Warning: Failed to save session data'));
+        }
+      }
 
       // Check if AI is ready to generate ADR
       const lowerResponse = aiResponse.toLowerCase();
@@ -204,6 +259,20 @@ Remember: The title should reflect the architectural decision, not just the feat
     this.featureData.adrFilename = this.generateADRFilename(
       this.featureData.adr_title || this.featureData.name
     );
+
+    // Save final session state
+    if (sessionManager && sessionName) {
+      try {
+        await sessionManager.saveSession(
+          sessionName,
+          this.featureData,
+          this.chatSession.getHistory()
+        );
+      } catch {
+        console.warn(chalk.yellow('⚠️  Warning: Failed to save final session data'));
+      }
+    }
+
     return this.featureData;
   }
 

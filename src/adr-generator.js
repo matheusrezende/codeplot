@@ -47,7 +47,9 @@ export class ADRGenerator {
       const adrCommand = `adr new "${safeTitleForCommand}"`;
 
       spinner.text = 'Creating ADR with adr-tools...';
-      const { stdout } = await execAsync(adrCommand, { cwd: docDir });
+      // Set EDITOR to prevent adr-tools from opening interactive editor
+      const env = { ...process.env, EDITOR: 'true' };
+      const { stdout } = await execAsync(adrCommand, { cwd: docDir, env });
 
       // Extract the created filename from adr-tools output
       const filenameMatch = stdout.match(/(\d+-[^\s]+\.md)/);

@@ -1,31 +1,54 @@
 version: 2
 updates:
-  # Enable version updates for npm
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     reviewers:
-      - "matheus"
+      - "matheusrezende"
     assignees:
-      - "matheus"
+      - "matheusrezende"
     commit-message:
-      prefix: "deps"
-      prefix-development: "deps-dev"
+      prefix: "chore(deps)"
+      include: "scope"
     labels:
       - "dependencies"
+      - "automated"
+    # Security: Always update vulnerable dependencies
+    ignore:
+      # Only ignore major updates for stable dependencies
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "@commitlint/*"
+          - "@semantic-release/*"
+          - "eslint*"
+          - "prettier"
+          - "husky"
+          - "lint-staged"
 
-  # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "matheusrezende"
+    assignees:
+      - "matheusrezende"
     commit-message:
-      prefix: "ci"
+      prefix: "chore(ci)"
+      include: "scope"
     labels:
       - "github-actions"
+      - "automated"

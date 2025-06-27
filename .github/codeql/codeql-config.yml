@@ -1,0 +1,29 @@
+name: "CodeQL Config"
+
+# Disable default queries and use only security queries
+disable-default-queries: false
+
+# Additional queries to run
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+
+# Paths to ignore during analysis
+paths-ignore:
+  - node_modules/**
+  - coverage/**
+  - dist/**
+  - build/**
+  - '**/*.test.js'
+  - '**/*.spec.js'
+  - docs/**
+
+# Paths to analyze (if you want to be explicit)
+paths:
+  - src/**
+
+# Languages to analyze
+languages:
+  - javascript

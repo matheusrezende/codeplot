@@ -1,13 +1,70 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
+import { ChatSession } from './chat-session.js';
+import { RepoPackager } from './repo-packager.js';
+import { SessionManager } from './session-manager.js';
+
+interface PackSummary {
+  fileCount: number;
+  totalLines: number;
+  sizeKB: number;
+  estimatedTokens: number;
+  sampleFiles: string[];
+  hasMoreFiles: boolean;
+  remainingCount: number;
+}
+
+interface SessionData {
+  featureData?: any;
+  chatHistory?: any[];
+  machineState?: string;
+  codebaseContent?: any;
+  codebaseHash?: string;
+  lastCodebaseUpdate?: string;
+  repomixSummary?: PackSummary;
+}
+
+interface SessionChoice {
+  type: string;
+  sessionData: SessionData;
+  sessionName: string;
+}
+
+interface StateInfo {
+  state: string;
+  hasCodebase: boolean;
+  hasChatHistory: boolean;
+  isCompleted: boolean;
+  sessionName: string | null;
+}
+
+interface StateMachinePackResult {
+  fromCache: boolean;
+  summary?: PackSummary;
+}
 
 /**
  * State machine for managing session lifecycle and codebase state
  * States: FRESH -> CODEBASE_PACKED -> CHAT_INITIALIZED -> PLANNING -> COMPLETED
  */
 export class SessionStateMachine {
-  constructor(sessionManager, repoPackager, chatSession) {
+  public sessionManager: SessionManager;
+  public repoPackager: RepoPackager;
+  public chatSession: ChatSession;
+  public states: { [key: string]: string };
+  public codebaseContent: any;
+  public repomixSummary: PackSummary | null;
+  private currentState: string;
+  private sessionData: SessionData | null;
+  private sessionName: string | null;
+  private codebaseHash: string | null;
+
+  constructor(
+    sessionManager: SessionManager,
+    repoPackager: RepoPackager,
+    chatSession: ChatSession
+  ) {
     this.sessionManager = sessionManager;
     this.repoPackager = repoPackager;
     this.chatSession = chatSession;
@@ -26,12 +83,16 @@ export class SessionStateMachine {
     this.sessionName = null;
     this.codebaseContent = null;
     this.codebaseHash = null;
+    this.repomixSummary = null;
   }
 
   /**
    * Load session and determine current state
    */
-  async loadSession(sessionPath = null, sessionChoice = null) {
+  async loadSession(
+    sessionPath: string | null = null,
+    sessionChoice: SessionChoice | null = null
+  ): Promise<void> {
     if (sessionPath) {
       // Direct session path provided
       this.sessionData = await this.sessionManager.loadSession(sessionPath);
@@ -51,12 +112,12 @@ export class SessionStateMachine {
   /**
    * Determine the current state based on session data
    */
-  determineStateFromSession(sessionData) {
+  determineStateFromSession(sessionData: SessionData): string {
     if (sessionData.featureData?.adr_content) {
       return this.states.COMPLETED;
     }
 
-    if (sessionData.chatHistory?.length > 0) {
+    if (sessionData.chatHistory && sessionData.chatHistory.length > 0) {
       return this.states.PLANNING;
     }
 
@@ -70,7 +131,7 @@ export class SessionStateMachine {
   /**
    * Execute state transitions to reach target state
    */
-  async transitionTo(targetState) {
+  async transitionTo(targetState: string): Promise<void> {
     const stateOrder = [
       this.states.FRESH,
       this.states.CODEBASE_PACKED,
@@ -95,7 +156,7 @@ export class SessionStateMachine {
   /**
    * Execute a single state transition
    */
-  async executeTransition(fromState, toState) {
+  async executeTransition(fromState: string, toState: string): Promise<void> {
     switch (toState) {
       case this.states.CODEBASE_PACKED:
         await this.packCodebase();
@@ -117,7 +178,7 @@ export class SessionStateMachine {
   /**
    * Pack codebase with smart caching
    */
-  async packCodebase() {
+  async packCodebase(): Promise<StateMachinePackResult> {
     // Check if we have cached codebase content and if it's still valid
     if (this.sessionData?.codebaseContent && this.sessionData?.codebaseHash) {
       const currentHash = await this.calculateCodebaseHash();
@@ -125,7 +186,7 @@ export class SessionStateMachine {
       if (currentHash === this.sessionData.codebaseHash) {
         this.codebaseContent = this.sessionData.codebaseContent;
         this.codebaseHash = this.sessionData.codebaseHash;
-        this.repomixSummary = this.sessionData.repomixSummary;
+        this.repomixSummary = this.sessionData.repomixSummary || null;
         return { fromCache: true };
       }
     }
@@ -140,24 +201,24 @@ export class SessionStateMachine {
     if (this.sessionData) {
       this.sessionData.codebaseContent = this.codebaseContent;
       this.sessionData.codebaseHash = this.codebaseHash;
-      this.sessionData.repomixSummary = this.repomixSummary;
+      this.sessionData.repomixSummary = this.repomixSummary || undefined;
       this.sessionData.lastCodebaseUpdate = new Date().toISOString();
     }
 
-    return { fromCache: false, summary: this.repomixSummary };
+    return { fromCache: false, summary: this.repomixSummary || undefined };
   }
 
   /**
    * Initialize chat session
    */
-  async initializeChat() {
+  async initializeChat(): Promise<void> {
     await this.chatSession.initialize(this.codebaseContent, this.sessionData);
   }
 
   /**
    * Calculate hash of the current codebase to detect changes
    */
-  async calculateCodebaseHash() {
+  async calculateCodebaseHash(): Promise<string> {
     try {
       // Get list of tracked files with their modification times
       const { exec } = await import('child_process');
@@ -182,7 +243,7 @@ export class SessionStateMachine {
   /**
    * Get filesystem state for hashing (fallback when git is not available)
    */
-  async getFileSystemState() {
+  async getFileSystemState(): Promise<string> {
     const patterns = [
       '**/*.js',
       '**/*.ts',
@@ -230,7 +291,7 @@ export class SessionStateMachine {
   /**
    * Save current session state
    */
-  async saveState() {
+  async saveState(): Promise<void> {
     if (!this.sessionName || !this.sessionData) {
       return;
     }
@@ -238,17 +299,17 @@ export class SessionStateMachine {
     // Update session data with current state
     this.sessionData.machineState = this.currentState;
     this.sessionData.codebaseContent = this.codebaseContent;
-    this.sessionData.codebaseHash = this.codebaseHash;
+    this.sessionData.codebaseHash = this.codebaseHash || undefined;
 
     try {
       await this.sessionManager.saveSession(
         this.sessionName,
         this.sessionData.featureData,
-        this.sessionData.chatHistory,
+        this.sessionData.chatHistory || [],
         {
           machineState: this.currentState,
           codebaseContent: this.codebaseContent,
-          codebaseHash: this.codebaseHash,
+          codebaseHash: this.codebaseHash || undefined,
           lastCodebaseUpdate: this.sessionData.lastCodebaseUpdate,
         }
       );
@@ -260,7 +321,7 @@ export class SessionStateMachine {
   /**
    * Get current state information
    */
-  getStateInfo() {
+  getStateInfo(): StateInfo {
     return {
       state: this.currentState,
       hasCodebase: !!this.codebaseContent,

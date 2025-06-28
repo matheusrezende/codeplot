@@ -2,8 +2,30 @@ import fs from 'fs-extra';
 import path from 'path';
 import inquirer from 'inquirer';
 
+interface Session {
+  name: string;
+  path: string;
+  displayName: string;
+}
+
+interface SessionData {
+  featureData: any;
+  chatHistory: any[];
+  [key: string]: any;
+}
+
+interface ExtendedData {
+  machineState?: any;
+  codebaseContent?: any;
+  codebaseHash?: string;
+  lastCodebaseUpdate?: string;
+}
+
 export class SessionManager {
-  constructor(projectPath) {
+  private projectPath: string;
+  private sessionsDir: string;
+
+  constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.sessionsDir = path.join(projectPath, '.codeplot', 'sessions');
   }
@@ -11,10 +33,10 @@ export class SessionManager {
   /**
    * Ensures the sessions directory exists
    */
-  async ensureSessionsDir() {
+  async ensureSessionsDir(): Promise<void> {
     try {
       await fs.ensureDir(this.sessionsDir);
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to create sessions directory: ${error.message}`);
     }
   }
@@ -23,7 +45,7 @@ export class SessionManager {
    * Lists all existing session files
    * @returns {Array} Array of session file objects with name and path
    */
-  async listSessions() {
+  async listSessions(): Promise<Session[]> {
     try {
       await this.ensureSessionsDir();
       const files = await fs.readdir(this.sessionsDir);
@@ -34,7 +56,7 @@ export class SessionManager {
         path: path.join(this.sessionsDir, file),
         displayName: this.formatSessionDisplayName(file),
       }));
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to list sessions: ${error.message}`);
     }
   }
@@ -44,7 +66,7 @@ export class SessionManager {
    * @param {string} sessionPath - Path to the session file
    * @returns {Object} Session data with featureData and chatHistory
    */
-  async loadSession(sessionPath) {
+  async loadSession(sessionPath: string): Promise<SessionData> {
     try {
       if (!(await fs.pathExists(sessionPath))) {
         throw new Error(`Session file not found: ${sessionPath}`);
@@ -58,7 +80,7 @@ export class SessionManager {
       }
 
       return sessionData;
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof SyntaxError) {
         throw new Error(`Invalid JSON in session file: ${sessionPath}`);
       }
@@ -73,12 +95,17 @@ export class SessionManager {
    * @param {Array} chatHistory - Chat conversation history
    * @param {Object} extendedData - Extended data including state machine info and codebase
    */
-  async saveSession(sessionName, featureData, chatHistory, extendedData = {}) {
+  async saveSession(
+    sessionName: string,
+    featureData: any,
+    chatHistory: any[],
+    extendedData: ExtendedData = {}
+  ): Promise<string> {
     try {
       await this.ensureSessionsDir();
 
       const sessionPath = path.join(this.sessionsDir, `${sessionName}.json`);
-      const sessionData = {
+      const sessionData: SessionData = {
         featureData,
         chatHistory,
         lastUpdated: new Date().toISOString(),
@@ -87,7 +114,7 @@ export class SessionManager {
 
       await fs.writeJson(sessionPath, sessionData, { spaces: 2 });
       return sessionPath;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to save session: ${error.message}`);
     }
   }
@@ -96,10 +123,14 @@ export class SessionManager {
    * Prompts user to select a session or start a new one
    * @returns {Object} Object with type ('new' or 'resume') and sessionData if resuming
    */
-  async promptUserForSession() {
+  async promptUserForSession(): Promise<{
+    type: string;
+    sessionData?: SessionData;
+    sessionName?: string;
+  }> {
     try {
       const sessions = await this.listSessions();
-      const choices = [
+      const choices: any[] = [
         {
           name: '🆕 Start a new feature plan',
           value: { type: 'new' },
@@ -117,7 +148,9 @@ export class SessionManager {
         });
       }
 
-      const { selection } = await inquirer.prompt([
+      const { selection } = await inquirer.prompt<{
+        selection: { type: string; sessionPath?: string; sessionName?: string };
+      }>([
         {
           type: 'list',
           name: 'selection',
@@ -126,7 +159,7 @@ export class SessionManager {
         },
       ]);
 
-      if (selection.type === 'resume') {
+      if (selection.type === 'resume' && selection.sessionPath && selection.sessionName) {
         const sessionData = await this.loadSession(selection.sessionPath);
         return {
           type: 'resume',
@@ -136,7 +169,7 @@ export class SessionManager {
       }
 
       return { type: 'new' };
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to prompt for session: ${error.message}`);
     }
   }
@@ -146,7 +179,7 @@ export class SessionManager {
    * @param {string} filename - The session filename
    * @returns {string} Formatted display name
    */
-  formatSessionDisplayName(filename) {
+  formatSessionDisplayName(filename: string): string {
     const baseName = path.basename(filename, '.json');
     // Convert kebab-case to title case
     return baseName
@@ -160,7 +193,7 @@ export class SessionManager {
    * @param {string} featureDescription - The feature description
    * @returns {string} Kebab-case session name
    */
-  generateSessionName(featureDescription) {
+  generateSessionName(featureDescription: string): string {
     // Extract meaningful words and convert to kebab-case
     return featureDescription
       .toLowerCase()
@@ -175,7 +208,7 @@ export class SessionManager {
    * Gets session choice without user interaction - for ink UI to handle
    * @returns {string} 'new' for new session, or null if no existing sessions
    */
-  async getSessionChoice() {
+  async getSessionChoice(): Promise<string> {
     try {
       const sessions = await this.listSessions();
 
@@ -186,7 +219,7 @@ export class SessionManager {
       // For now, always return 'new' - the ink UI will handle session selection later
       // This could be enhanced to show existing sessions in the ink UI
       return 'new';
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to get session choice: ${error.message}`);
     }
   }
@@ -195,10 +228,10 @@ export class SessionManager {
    * Deletes a session file
    * @param {string} sessionPath - Path to the session file to delete
    */
-  async deleteSession(sessionPath) {
+  async deleteSession(sessionPath: string): Promise<void> {
     try {
       await fs.remove(sessionPath);
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to delete session: ${error.message}`);
     }
   }

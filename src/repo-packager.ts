@@ -5,13 +5,31 @@ import fs from 'fs-extra';
 
 const execAsync = promisify(exec);
 
+interface PackSummary {
+  fileCount: number;
+  totalLines: number;
+  sizeKB: number;
+  estimatedTokens: number;
+  sampleFiles: string[];
+  hasMoreFiles: boolean;
+  remainingCount: number;
+}
+
+interface PackResult {
+  content: string;
+  summary: PackSummary;
+}
+
 export class RepoPackager {
-  constructor(projectPath) {
+  public projectPath: string;
+  private outputFile: string;
+
+  constructor(projectPath: string) {
     this.projectPath = projectPath;
     this.outputFile = path.join(projectPath, 'repomix-output.txt');
   }
 
-  async pack() {
+  async pack(): Promise<PackResult> {
     try {
       // Check if repomix is installed
       await this.checkRepomixInstallation();
@@ -30,7 +48,7 @@ export class RepoPackager {
       await fs.remove(this.outputFile);
 
       return { content, summary };
-    } catch (error) {
+    } catch (error: any) {
       if (error.message.includes('repomix: command not found')) {
         await this.installRepomix();
         return this.pack(); // Retry after installation
@@ -40,7 +58,7 @@ export class RepoPackager {
     }
   }
 
-  async checkRepomixInstallation() {
+  async checkRepomixInstallation(): Promise<void> {
     try {
       await execAsync('which repomix');
     } catch {
@@ -48,20 +66,20 @@ export class RepoPackager {
     }
   }
 
-  async installRepomix() {
+  async installRepomix(): Promise<void> {
     try {
       await execAsync('npm install -g repomix');
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to install repomix: ${error.message}`);
     }
   }
 
-  generateSummary(content) {
+  generateSummary(content: string): PackSummary {
     // Extract basic statistics from content
     const lines = content.split('\n');
     const totalLines = lines.length;
 
-    // Count files (look for new repomix format: <file path="...")
+    // Count files (look for new repomix format: <file path="...">)
     const fileMatches = content.match(/<file path="([^"]+)"/g) || [];
     const fileCount = fileMatches.length;
 

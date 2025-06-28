@@ -1,178 +1,96 @@
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
-import { logger } from '../utils/logger.js';
+import { logger } from '../utils/logger';
+
+interface Option {
+  id: string;
+  title: string;
+  description: string;
+  recommended: boolean;
+}
+
+interface PlanningQuestionData {
+  header: string;
+  bodyText: string;
+  optionText: string;
+  options: Option[];
+  readyForADR: boolean;
+}
+
+interface ResponseSection {
+  header?: string;
+  body?: string;
+  optionPrompt?: string;
+  options?: Option[];
+}
+
+interface ReadinessEvaluation {
+  readyForADR: boolean;
+  missingInformation: string[];
+  reasoning: string;
+}
+
+interface ConversationItem {
+  role: string;
+  content: string;
+}
 
 export class PlanningAgent {
-  constructor(apiKey) {
+  private model: ChatGoogleGenerativeAI;
+
+  constructor(apiKey: string, modelName: string = 'gemini-2.5-pro') {
     this.model = new ChatGoogleGenerativeAI({
-      model: 'gemini-2.0-flash-exp',
+      model: modelName,
       apiKey,
-      temperature: 0.7,
+      temperature: 0.5,
     });
-
-    this.systemPrompt = `You are a Senior Software Architect focused on FEATURE PLANNING ONLY.
-
-Your SOLE responsibility is to ask clarifying questions to understand a feature request in complete detail. You must NEVER generate ADRs, implementation plans, or code suggestions.
-
-## Your Process:
-1. Analyze the feature request and codebase context
-2. Ask ONE focused clarifying question at a time
-3. Continue until you have complete understanding of:
-   - Exact feature behavior and requirements
-   - User interactions and edge cases
-   - Data flows and business rules
-   - Integration points with existing code
-   - Performance and security considerations
-
-## Response Format:
-You MUST respond using this semantic markdown format:
-
-# [Brief section title]
-
-[Your analysis and context in markdown format]
-
-**[Your clarifying question]**
-
-1. **[First option title]** ⭐ RECOMMENDED
-   [Detailed explanation of this option]
-
-2. **[Second option title]**
-   [Detailed explanation of this option]
-
-3. **[Third option title]**
-   [Detailed explanation of this option]
-
-## Important formatting rules:
-- Use exactly one # header at the start
-- Put your question in **bold** before the options
-- Number options starting from 1
-- Mark your recommended option with ⭐ RECOMMENDED
-- Keep option titles concise but descriptive
-- Provide detailed explanations under each option
-
-## Critical Rules:
-- NEVER generate implementation plans or code
-- NEVER create ADRs or architectural decisions
-- Focus only on understanding requirements completely
-- Ask about edge cases, error handling, performance needs
-- Explore integration with existing systems
-- Consider user experience and business rules
-
-## When NOT Ready for ADR:
-- Missing user interaction details
-- Unclear data requirements
-- Unknown integration points
-- Undefined error handling
-- Missing performance requirements
-- Unclear business rules
-
-## When Ready for ADR:
-Only when you have complete understanding of:
-✓ Exact feature behavior
-✓ All user interactions
-✓ Complete data requirements
-✓ Integration points identified
-✓ Error handling defined
-✓ Performance requirements clear
-✓ Security considerations addressed
-
-Remember: Your job is to ASK QUESTIONS, not provide solutions!`;
   }
 
-  async askQuestion(featureRequest, conversationHistory, codebaseContext, onChunk = null) {
+  async askQuestion(
+    featureRequest: string,
+    conversationHistory: ConversationItem[],
+    codebaseContext: string = '',
+    _onChunk?: (chunk: string) => void
+  ): Promise<{
+    success: boolean;
+    data?: PlanningQuestionData;
+    error?: string;
+    rawResponse?: string;
+  }> {
     logger.debug('PlanningAgent: askQuestion called', {
-      featureRequestLength: featureRequest?.length || 0,
-      conversationHistoryLength: conversationHistory?.length || 0,
-      codebaseContextLength: codebaseContext?.length || 0,
-      streaming: !!onChunk,
+      featureRequestLength: featureRequest.length,
+      conversationHistoryLength: conversationHistory.length,
+      codebaseContextLength: codebaseContext.length,
     });
 
-    const prompt = ChatPromptTemplate.fromMessages([
-      ['system', this.systemPrompt],
+    const questionPrompt = ChatPromptTemplate.fromMessages([
+      [
+        'system',
+        'You are a highly analytical software architect focused on eliciting detailed requirements for feature planning and ADR creation.\n\nProvide clear questions to clarify ALL necessary details. Respond with semantic markdown for clarity.\n\nUse concise headings, explicit requirements, and consider integration points.',
+      ],
       [
         'human',
-        `Feature Request: {featureRequest}
-
-Codebase Context:
-{codebaseContext}
-
-Conversation History:
-{conversationHistory}
-
-Ask your next clarifying question to better understand this feature. Focus on areas that need more detail.`,
+        'Feature Request: {featureRequest}\n\nCodebase Context:\n{codebaseContext}\n\nConversation History:\n{conversationHistory}\n\nBased on the above, what questions can we ask to ensure all necessary details are captured for planning an ADR?',
       ],
     ]);
 
-    const chain = prompt.pipe(this.model).pipe(new StringOutputParser());
+    const chain = questionPrompt.pipe(this.model).pipe(new StringOutputParser());
 
-    logger.debug('PlanningAgent: Invoking LLM chain');
-    const startTime = Date.now();
-
-    const inputData = {
+    const response = await chain.invoke({
       featureRequest,
       codebaseContext,
       conversationHistory: this.formatConversationHistory(conversationHistory),
-    };
-
-    if (onChunk) {
-      // Stream the response
-      let fullResponse = '';
-
-      try {
-        const stream = await chain.stream(inputData);
-
-        for await (const chunk of stream) {
-          fullResponse += chunk;
-          onChunk(chunk);
-        }
-
-        const duration = Date.now() - startTime;
-        logger.debug('PlanningAgent: Streaming LLM response completed', {
-          duration: `${duration}ms`,
-          responseLength: fullResponse?.length || 0,
-        });
-
-        return this.parseResponse(fullResponse);
-      } catch (error) {
-        logger.error('PlanningAgent: Streaming failed, falling back to non-streaming', {
-          error: error.message,
-        });
-        // Fall back to non-streaming
-      }
-    }
-
-    // Non-streaming response
-    const response = await chain.invoke(inputData);
-
-    const duration = Date.now() - startTime;
-    logger.debug('PlanningAgent: LLM response received', {
-      duration: `${duration}ms`,
-      responseLength: response?.length || 0,
     });
 
     return this.parseResponse(response);
   }
 
-  async evaluateReadiness(featureRequest, conversationHistory) {
-    // Add safety checks
-    if (!featureRequest) {
-      logger.warn('PlanningAgent: evaluateReadiness called with empty featureRequest');
-      return {
-        readyForADR: false,
-        missingInformation: ['Feature request is required'],
-        reasoning: 'No feature request provided',
-      };
-    }
-
-    if (!conversationHistory || !Array.isArray(conversationHistory)) {
-      logger.warn('PlanningAgent: evaluateReadiness called with invalid conversationHistory');
-      conversationHistory = [];
-    }
-
-    logger.debug('PlanningAgent: evaluateReadiness called', {
-      featureRequestLength: featureRequest?.length || 0,
-      conversationHistoryLength: conversationHistory?.length || 0,
+  async evaluateReadiness(
+    featureRequest: string,
+    conversationHistory: ConversationItem[]
+  ): Promise<ReadinessEvaluation> {
+    logger.debug('PlanningAgent: Evaluating readiness for ADR', {
       featureRequest: featureRequest?.substring(0, 100) + '...',
       conversationHistory,
     });
@@ -228,12 +146,12 @@ Ask your next clarifying question to better understand this feature. Focus on ar
         cleanedPreview: cleanResponse?.substring(0, 200) + '...' || 'no response',
       });
 
-      const parsed = JSON.parse(cleanResponse);
+      const parsed: ReadinessEvaluation = JSON.parse(cleanResponse);
       logger.debug('PlanningAgent: Evaluation parsed successfully', { parsed });
       return parsed;
     } catch (error) {
       logger.error('PlanningAgent: Failed to parse evaluation response', {
-        error: error.message,
+        error: (error as Error).message,
         response: response?.substring(0, 500) + '...' || 'no response',
       });
       return {
@@ -244,11 +162,16 @@ Ask your next clarifying question to better understand this feature. Focus on ar
     }
   }
 
-  formatConversationHistory(history) {
+  formatConversationHistory(history: ConversationItem[]): string {
     return history.map(item => `${item.role}: ${item.content}`).join('\n\n');
   }
 
-  parseResponse(response) {
+  parseResponse(response: string): {
+    success: boolean;
+    data?: PlanningQuestionData;
+    error?: string;
+    rawResponse?: string;
+  } {
     try {
       logger.debug('PlanningAgent: Parsing response', {
         responseLength: response?.length || 0,
@@ -278,19 +201,19 @@ Ask your next clarifying question to better understand this feature. Focus on ar
       };
     } catch (error) {
       logger.error('PlanningAgent: Failed to parse response', {
-        error: error.message,
+        error: (error as Error).message,
         response: response?.substring(0, 500) + '...' || 'no response',
       });
       return {
         success: false,
-        error: error.message,
+        error: (error as Error).message,
         rawResponse: response,
       };
     }
   }
 
-  extractSections(text) {
-    const sections = {};
+  extractSections(text: string): ResponseSection {
+    const sections: ResponseSection = {};
 
     // Extract header (first # heading)
     const headerMatch = text.match(/^#\s+(.+)$/m);
@@ -301,8 +224,8 @@ Ask your next clarifying question to better understand this feature. Focus on ar
     // Extract numbered options
     const optionPattern =
       /^(\d+)\s*\.\s*\*\*(.+?)\*\*(?:\s*⭐\s*RECOMMENDED)?\s*[\r\n]([\s\S]*?)(?=^\d+\s*\.|$)/gm;
-    const options = [];
-    let optionMatch;
+    const options: Option[] = [];
+    let optionMatch: RegExpExecArray | null;
 
     while ((optionMatch = optionPattern.exec(text)) !== null) {
       const [fullMatch, id, title, description] = optionMatch;
@@ -329,19 +252,19 @@ Ask your next clarifying question to better understand this feature. Focus on ar
     let bodyStartIndex = 0;
     let bodyEndIndex = text.length;
 
-    if (headerMatch) {
+    if (headerMatch && headerMatch.index !== undefined) {
       bodyStartIndex = headerMatch.index + headerMatch[0].length;
     }
 
     if (options.length > 0) {
       // Find the option prompt
       const optionPromptMatch = text.match(/\*\*[^*]+\*\*\s*(?=\n\s*1\.)/i);
-      if (optionPromptMatch) {
+      if (optionPromptMatch && optionPromptMatch.index !== undefined) {
         bodyEndIndex = optionPromptMatch.index;
       } else {
         // Fallback: find first option
         const firstOptionMatch = text.match(/^1\s*\./m);
-        if (firstOptionMatch) {
+        if (firstOptionMatch && firstOptionMatch.index !== undefined) {
           bodyEndIndex = firstOptionMatch.index;
         }
       }

@@ -3,6 +3,7 @@ import { Box, Text, useInput, useApp } from 'ink';
 import TextInput from 'ink-text-input';
 import AIResponse from './AIResponse.jsx';
 import MarkdownText from './MarkdownText.jsx';
+import { ThinkingSpinner } from './components/Spinner.jsx';
 import { AgentOrchestrator } from '../agents/AgentOrchestrator.js';
 
 const ChatView = ({ chatSession, sessionManager, sessionName, onComplete, onError, repomixSummary, aiAnalysis }) => {
@@ -392,8 +393,17 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
           }
         }
 
-        addMessage('system', '✅ ADR generation completed! Type "exit" to finish.');
+        addMessage('system', '✅ ADR generation completed!');
         setMode('completed');
+        
+        // Call the completion handler to save ADR to file
+        if (onComplete && chatSession) {
+          try {
+            await onComplete(chatSession.featureData);
+          } catch (error) {
+            addMessage('system', `⚠️  Warning: Failed to save ADR file: ${error.message}`);
+          }
+        }
       } else {
         throw new Error('Failed to generate ADR');
       }
@@ -459,7 +469,7 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
               <Text color="blue">🤖 AI:</Text>
             </Box>
             <Box flexGrow={1}>
-              <Text color="gray">Thinking...</Text>
+              	<ThinkingSpinner />
             </Box>
           </Box>
         )}

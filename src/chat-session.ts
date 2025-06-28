@@ -1,8 +1,11 @@
-// This class handles only state management and AI communication
-// All presentation logic has been removed and moved to the UI components
-
 export class ChatSession {
-  constructor(model, _options = {}) {
+  public model: any;
+  public chatSession: any | null;
+  public chatHistory: any[];
+  public featureData: Record<string, any>;
+  public codebaseContent: any;
+
+  constructor(model: any, _options: Record<string, any> = {}) {
     this.model = model;
     this.chatSession = null;
 
@@ -22,7 +25,11 @@ export class ChatSession {
     };
   }
 
-  async initialize(codebaseContent, sessionData = null, _onAnalysisChunk = null) {
+  async initialize(
+    codebaseContent: any,
+    sessionData: Record<string, any> | null = null,
+    _onAnalysisChunk: ((chunk: string) => void) | null = null
+  ): Promise<string | { isNewSession: boolean; analysis: string }> {
     if (sessionData && sessionData.chatHistory && sessionData.chatHistory.length > 0) {
       // Resuming from existing session
       this.featureData = sessionData.featureData || this.featureData;
@@ -37,7 +44,7 @@ export class ChatSession {
         });
 
         return 'Session restored';
-      } catch (error) {
+      } catch (error: any) {
         throw new Error(`Failed to restore session: ${error.message}`);
       }
     } else {
@@ -117,15 +124,13 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
         });
 
         return { isNewSession: true, analysis: response };
-      } catch (error) {
+      } catch (error: any) {
         throw new Error(`Failed to analyze codebase: ${error.message}`);
       }
     }
   }
 
-  // This method was removed - UI components now handle the interactive planning
-
-  async sendMessage(message) {
+  async sendMessage(message: string): Promise<string> {
     try {
       // Add user message to history
       this.chatHistory.push({
@@ -143,12 +148,12 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
       });
 
       return response;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to get AI response: ${error.message}`);
     }
   }
 
-  async sendMessageStream(message, onChunk) {
+  async sendMessageStream(message: string, onChunk: (chunk: string) => void): Promise<string> {
     try {
       // Add user message to history
       this.chatHistory.push({
@@ -163,9 +168,7 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
         fullResponse += chunkText;
-        if (onChunk) {
-          onChunk(chunkText);
-        }
+        onChunk(chunkText);
       }
 
       // Add AI response to history
@@ -175,12 +178,12 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
       });
 
       return fullResponse;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to get AI response: ${error.message}`);
     }
   }
 
-  extractFeatureName(description) {
+  extractFeatureName(description: string): string {
     // Simple extraction - take first few words and make it filename-safe
     return description
       .toLowerCase()
@@ -192,12 +195,12 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
       .replace(/-+/g, '-'); // Collapse multiple hyphens
   }
 
-  extractImplementationPlan(adrContent) {
+  extractImplementationPlan(adrContent: string): string {
     const planMatch = adrContent.match(/## Implementation Plan\s*([\s\S]*?)(?=## |$)/);
     return planMatch ? planMatch[1].trim() : '';
   }
 
-  extractADRTitle(adrContent) {
+  extractADRTitle(adrContent: string): string | null {
     // Extract title from ADR content - look for the pattern "# ADR: [Number] - [Title]"
     const titleMatch = adrContent.match(/# ADR:\s*\d+\s*-\s*(.+)/);
     if (titleMatch) {
@@ -213,7 +216,7 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
     return null;
   }
 
-  generateADRFilename(featureName) {
+  generateADRFilename(featureName: string): string {
     const timestamp = new Date().toISOString().split('T')[0];
     const safeFeatureName = featureName
       .toLowerCase()
@@ -225,6 +228,4 @@ I have a codebase ready for analysis. Please confirm you're ready to help me pla
       .replace(/-+/g, '-');
     return `${timestamp}-${safeFeatureName}.md`;
   }
-
-  // This method was removed - UI components now handle ADR modification
 }

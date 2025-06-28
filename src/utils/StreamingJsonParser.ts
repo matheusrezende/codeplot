@@ -3,14 +3,56 @@
  * Uses semantic tags and progressive text assembly instead of complex JSON streaming
  */
 
+interface Option {
+  id: string;
+  title: string;
+  description: string;
+  recommended: boolean;
+}
+
+interface ParsedContent {
+  header: string;
+  bodyText: string;
+  optionText: string;
+  options: Option[];
+}
+
+interface ExtractedSection {
+  header?: string;
+  body?: string;
+  optionPrompt?: string;
+  options?: Option[];
+}
+
+interface ProcessedOption {
+  value: string;
+  title: string;
+  description: string;
+  isRecommended: boolean;
+}
+
+interface ProcessedChunk {
+  parsedData: ParsedContent;
+  isComplete: boolean;
+  displayText: string;
+}
+
 export class SimpleStreamProcessor {
+  private chunks: string[] = [];
+  protected parsedContent: ParsedContent = {
+    header: '',
+    bodyText: '',
+    optionText: '',
+    options: [],
+  };
+  private isComplete: boolean = false;
+
   constructor() {
     this.reset();
   }
 
-  reset() {
+  reset(): void {
     this.chunks = [];
-    this.currentSection = null;
     this.parsedContent = {
       header: '',
       bodyText: '',
@@ -23,7 +65,7 @@ export class SimpleStreamProcessor {
   /**
    * Process a streaming chunk and return formatted content
    */
-  processChunk(chunk) {
+  processChunk(chunk: string): ProcessedChunk {
     this.chunks.push(chunk);
     const fullText = this.chunks.join('');
 
@@ -40,7 +82,7 @@ export class SimpleStreamProcessor {
   /**
    * Parse text progressively using semantic patterns
    */
-  parseIncrementalText(text) {
+  private parseIncrementalText(text: string): void {
     // Parse sections using markdown-like patterns
     const sections = this.extractSections(text);
 
@@ -64,8 +106,8 @@ export class SimpleStreamProcessor {
   /**
    * Extract semantic sections from markdown-style text
    */
-  extractSections(text) {
-    const sections = {};
+  private extractSections(text: string): ExtractedSection {
+    const sections: ExtractedSection = {};
 
     // Extract header (first # heading)
     const headerMatch = text.match(/^#\s+(.+)$/m);
@@ -76,8 +118,8 @@ export class SimpleStreamProcessor {
     // Extract numbered options
     const optionPattern =
       /^(\d+)\s*\.\s*\*\*(.+?)\*\*(?:\s*⭐\s*RECOMMENDED)?\s*[\r\n]([\s\S]*?)(?=^\d+\s*\.|$)/gm;
-    const options = [];
-    let optionMatch;
+    const options: Option[] = [];
+    let optionMatch: RegExpExecArray | null;
 
     while ((optionMatch = optionPattern.exec(text)) !== null) {
       const [fullMatch, id, title, description] = optionMatch;
@@ -106,21 +148,21 @@ export class SimpleStreamProcessor {
     let bodyStartIndex = 0;
     let bodyEndIndex = text.length;
 
-    if (headerMatch) {
+    if (headerMatch && headerMatch.index !== undefined) {
       bodyStartIndex = headerMatch.index + headerMatch[0].length;
     }
 
     if (options.length > 0) {
       // Find first option
       const firstOptionMatch = text.match(/^1\s*\./m);
-      if (firstOptionMatch) {
+      if (firstOptionMatch && firstOptionMatch.index !== undefined) {
         bodyEndIndex = firstOptionMatch.index;
         // Look backwards for option prompt
         const beforeOptions = text.substring(0, bodyEndIndex);
         const optionPromptMatch = beforeOptions.match(
           /([^\n]*(?:choose|select|option|prefer)[^\n]*):?\s*$/i
         );
-        if (optionPromptMatch) {
+        if (optionPromptMatch && optionPromptMatch.index !== undefined) {
           bodyEndIndex = optionPromptMatch.index;
         }
       }
@@ -137,7 +179,7 @@ export class SimpleStreamProcessor {
   /**
    * Check if the response appears complete
    */
-  checkCompleteness(text) {
+  private checkCompleteness(text: string): boolean {
     // Simple heuristics to determine if response is complete
     const lines = text.split('\n');
     const lastLine = lines[lines.length - 1]?.trim();
@@ -155,7 +197,7 @@ export class SimpleStreamProcessor {
   /**
    * Build display text from parsed content
    */
-  buildDisplayText() {
+  private buildDisplayText(): string {
     let displayText = '';
 
     if (this.parsedContent.header) {
@@ -176,13 +218,13 @@ export class SimpleStreamProcessor {
   /**
    * Get processed options
    */
-  getOptions() {
+  getOptions(): ProcessedOption[] {
     if (!this.parsedContent.options || this.parsedContent.options.length === 0) {
       return [];
     }
 
     const processedOptions = this.parsedContent.options.map((option, index) => ({
-      value: option.id || option.value || String(index + 1),
+      value: option.id || String(index + 1),
       title: option.title,
       description: option.description || '',
       isRecommended: option.recommended || false,
@@ -202,7 +244,7 @@ export class SimpleStreamProcessor {
   /**
    * Check if response has options
    */
-  hasOptions() {
+  hasOptions(): boolean {
     return this.parsedContent.options && this.parsedContent.options.length > 0;
   }
 }
@@ -214,11 +256,11 @@ export class StreamingJsonParser extends SimpleStreamProcessor {
   }
 
   // Keep the old interface for backward compatibility
-  get parsedData() {
+  get parsedData(): ParsedContent {
     return this.parsedContent;
   }
 
-  set parsedData(data) {
+  set parsedData(data: ParsedContent) {
     this.parsedContent = data;
   }
 }

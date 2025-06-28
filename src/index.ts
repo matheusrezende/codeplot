@@ -6,6 +6,24 @@ import React from 'react';
 import App from './ui/App.jsx';
 import { logger } from './utils/logger.js';
 
+interface PlanOptions {
+  projectPath: string;
+  apiKey?: string;
+  outputDir: string;
+  session?: string;
+  streaming: boolean;
+  typingSpeed: string;
+  debug?: boolean;
+  logLevel?: string;
+}
+
+interface EnvironmentInfo {
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  cwd: string;
+}
+
 const program = new Command();
 
 program
@@ -24,7 +42,7 @@ program
   .option('--typing-speed <speed>', 'Typing speed for streaming: fast, normal, slow', 'normal')
   .option('--debug', 'Enable debug mode with verbose logging and stack traces')
   .option('--log-level <level>', 'Set log level: error, warn, info, debug, trace', 'info')
-  .action(async options => {
+  .action(async (options: PlanOptions) => {
     try {
       // Set environment variables for debug mode and log level
       if (options.debug) {
@@ -34,14 +52,16 @@ program
         process.env.LOG_LEVEL = options.logLevel;
       }
 
+      const environmentInfo: EnvironmentInfo = {
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        cwd: process.cwd(),
+      };
+
       logger.info('Starting codeplot application', {
         options: { ...options, apiKey: options.apiKey ? '[REDACTED]' : undefined },
-        environment: {
-          nodeVersion: process.version,
-          platform: process.platform,
-          arch: process.arch,
-          cwd: process.cwd(),
-        },
+        environment: environmentInfo,
       });
 
       // Validate required options
@@ -60,7 +80,7 @@ program
       logger.debug('Rendering React App component');
       render(React.createElement(App, { options }));
     } catch (error) {
-      logger.errorWithStack(error, 'Failed to start application');
+      logger.errorWithStack(error as Error, 'Failed to start application');
       // In non-debug mode, show user-friendly error and exit
       if (!process.env.DEBUG) {
         console.error('❌ Application failed to start. Run with --debug for more details.');
@@ -87,9 +107,9 @@ program
   });
 
 // Global error handlers setup
-function setupGlobalErrorHandlers() {
+function setupGlobalErrorHandlers(): void {
   // Handle uncaught exceptions
-  process.on('uncaughtException', error => {
+  process.on('uncaughtException', (error: Error) => {
     logger.errorWithStack(error, 'Uncaught Exception');
     if (!process.env.DEBUG) {
       console.error('❌ Unexpected error occurred. Debug log saved to:', logger.getLogFilePath());
@@ -98,7 +118,7 @@ function setupGlobalErrorHandlers() {
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
     const error = reason instanceof Error ? reason : new Error(String(reason));
     logger.errorWithStack(error, 'Unhandled Promise Rejection', { promise });
     if (!process.env.DEBUG) {
@@ -108,7 +128,7 @@ function setupGlobalErrorHandlers() {
   });
 
   // Handle process warnings
-  process.on('warning', warning => {
+  process.on('warning', (warning: Error) => {
     logger.warn('Process Warning', {
       name: warning.name,
       message: warning.message,

@@ -5,10 +5,30 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
+
+interface LogMetadata {
+  [key: string]: unknown;
+}
+
+interface ErrorMetadata extends LogMetadata {
+  name: string;
+  message: string;
+  stack?: string;
+  cause?: unknown;
+  code?: string | number;
+}
+
 class Logger {
+  private readonly isDebugMode: boolean;
+  private readonly logLevel: LogLevel;
+  private readonly logFile: string;
+  private readonly maxLogSize: number;
+  private readonly maxLogFiles: number;
+
   constructor() {
     this.isDebugMode = process.env.DEBUG === 'true' || process.argv.includes('--debug');
-    this.logLevel = process.env.LOG_LEVEL || 'info';
+    this.logLevel = (process.env.LOG_LEVEL as LogLevel) || 'info';
     this.logFile = path.join(process.cwd(), 'debug.log');
     this.maxLogSize = 10 * 1024 * 1024; // 10MB
     this.maxLogFiles = 5;
@@ -30,7 +50,7 @@ class Logger {
     this.info('='.repeat(80));
   }
 
-  rotateLogs() {
+  private rotateLogs(): void {
     try {
       if (fs.existsSync(this.logFile)) {
         const stats = fs.statSync(this.logFile);
@@ -55,11 +75,12 @@ class Logger {
       }
     } catch (error) {
       // If rotation fails, continue anyway
-      console.error('Log rotation failed:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Log rotation failed:', errorMessage);
     }
   }
 
-  formatMessage(level, message, meta = {}) {
+  private formatMessage(level: LogLevel, message: string, meta: LogMetadata = {}): string {
     const timestamp = new Date().toISOString();
     const pid = process.pid;
 
@@ -72,19 +93,20 @@ class Logger {
     return formattedMessage;
   }
 
-  writeToFile(level, message, meta = {}) {
+  private writeToFile(level: LogLevel, message: string, meta: LogMetadata = {}): void {
     try {
       const formattedMessage = this.formatMessage(level, message, meta);
       fs.appendFileSync(this.logFile, formattedMessage + '\n');
     } catch (error) {
       // Fallback to console if file write fails
-      console.error('Failed to write to log file:', error.message);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Failed to write to log file:', errorMessage);
       console.log(`[${level.toUpperCase()}]`, message, meta);
     }
   }
 
-  shouldLog(level) {
-    const levels = {
+  private shouldLog(level: LogLevel): boolean {
+    const levels: Record<LogLevel, number> = {
       error: 0,
       warn: 1,
       info: 2,
@@ -95,7 +117,7 @@ class Logger {
     return levels[level] <= levels[this.logLevel];
   }
 
-  error(message, meta = {}) {
+  public error(message: string, meta: LogMetadata = {}): void {
     if (this.shouldLog('error')) {
       this.writeToFile('error', message, meta);
 
@@ -108,7 +130,7 @@ class Logger {
     }
   }
 
-  warn(message, meta = {}) {
+  public warn(message: string, meta: LogMetadata = {}): void {
     if (this.shouldLog('warn')) {
       this.writeToFile('warn', message, meta);
 
@@ -121,7 +143,7 @@ class Logger {
     }
   }
 
-  info(message, meta = {}) {
+  public info(message: string, meta: LogMetadata = {}): void {
     if (this.shouldLog('info')) {
       this.writeToFile('info', message, meta);
 
@@ -134,7 +156,7 @@ class Logger {
     }
   }
 
-  debug(message, meta = {}) {
+  public debug(message: string, meta: LogMetadata = {}): void {
     if (this.shouldLog('debug')) {
       this.writeToFile('debug', message, meta);
 
@@ -147,7 +169,7 @@ class Logger {
     }
   }
 
-  trace(message, meta = {}) {
+  public trace(message: string, meta: LogMetadata = {}): void {
     if (this.shouldLog('trace')) {
       this.writeToFile('trace', message, meta);
 
@@ -161,14 +183,18 @@ class Logger {
   }
 
   // Special method for logging errors with stack traces
-  errorWithStack(error, message = 'Unhandled error', meta = {}) {
-    const errorMeta = {
+  public errorWithStack(error: Error, message = 'Unhandled error', meta: LogMetadata = {}): never {
+    const errorMeta: ErrorMetadata = {
       ...meta,
       name: error.name,
       message: error.message,
       stack: error.stack,
-      ...(error.cause && { cause: error.cause }),
-      ...(error.code && { code: error.code }),
+      ...(error.cause && typeof error.cause === 'object' && error.cause !== null
+        ? { cause: error.cause }
+        : {}),
+      ...(typeof (error as Error & { code?: string | number }).code !== 'undefined' && {
+        code: (error as Error & { code?: string | number }).code,
+      }),
     };
 
     this.error(message, errorMeta);
@@ -180,10 +206,16 @@ class Logger {
       console.error('='.repeat(80));
       throw error;
     }
+
+    throw error;
   }
 
   // Method to log function entry/exit for debugging
-  logFunctionCall(functionName, args = {}, result = null) {
+  public logFunctionCall(
+    functionName: string,
+    args: LogMetadata = {},
+    result: unknown = null
+  ): void {
     if (this.isDebugMode) {
       this.trace(`Function Call: ${functionName}`, {
         arguments: args,
@@ -193,7 +225,13 @@ class Logger {
   }
 
   // Method to log API calls
-  logApiCall(method, url, requestData = {}, responseData = {}, duration = null) {
+  public logApiCall(
+    method: string,
+    url: string,
+    requestData: LogMetadata = {},
+    responseData: LogMetadata = {},
+    duration: number | null = null
+  ): void {
     this.debug(`API Call: ${method} ${url}`, {
       request: requestData,
       response: responseData,
@@ -202,7 +240,7 @@ class Logger {
   }
 
   // Method to log state changes
-  logStateChange(component, from, to, data = {}) {
+  public logStateChange(component: string, from: string, to: string, data: LogMetadata = {}): void {
     this.debug(`State Change: ${component}`, {
       from,
       to,
@@ -211,12 +249,12 @@ class Logger {
   }
 
   // Method to get log file path for external access
-  getLogFilePath() {
+  public getLogFilePath(): string {
     return this.logFile;
   }
 
   // Method to clear logs
-  clearLogs() {
+  public clearLogs(): void {
     try {
       if (fs.existsSync(this.logFile)) {
         fs.removeSync(this.logFile);
@@ -232,7 +270,8 @@ class Logger {
 
       this.info('Logs cleared');
     } catch (error) {
-      this.error('Failed to clear logs', { error: error.message });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.error('Failed to clear logs', { error: errorMessage });
     }
   }
 }
@@ -242,3 +281,4 @@ export const logger = new Logger();
 
 // Export class for testing
 export { Logger };
+export type { LogLevel, LogMetadata };

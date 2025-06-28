@@ -5,12 +5,21 @@ import path from 'path';
 
 const execAsync = promisify(exec);
 
+interface FeatureData {
+  adr_content: string;
+  adrFilename: string;
+  adr_title?: string;
+  name?: string;
+}
+
 export class ADRGenerator {
-  constructor(outputDir) {
+  private outputDir: string;
+
+  constructor(outputDir: string) {
     this.outputDir = outputDir;
   }
 
-  async generate(featureData) {
+  async generate(featureData: FeatureData): Promise<string> {
     try {
       // Ensure output directory exists
       await fs.ensureDir(this.outputDir);
@@ -23,19 +32,19 @@ export class ADRGenerator {
       } else {
         return await this.generateManually(featureData);
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Failed to generate ADR: ${error.message}`);
     }
   }
 
-  async generateWithADRTools(featureData) {
+  async generateWithADRTools(featureData: FeatureData): Promise<string> {
     try {
       // Initialize ADR directory if it doesn't exist
       await this.initializeADRDirectory();
 
       // Get the title for adr-tools (remove special characters for command line safety)
       const adrTitle = featureData.adr_title || featureData.name;
-      const safeTitleForCommand = adrTitle.replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+      const safeTitleForCommand = (adrTitle || '').replace(/[^a-zA-Z0-9\s-]/g, '').trim();
 
       // Use adr-tools to create a new ADR
       const docDir = path.join(this.outputDir, '..');
@@ -47,7 +56,7 @@ export class ADRGenerator {
 
       // Extract the created filename from adr-tools output
       const filenameMatch = stdout.match(/(\d+-[^\s]+\.md)/);
-      let adrPath;
+      let adrPath: string;
 
       if (filenameMatch) {
         const generatedFilename = filenameMatch[1];
@@ -71,13 +80,13 @@ export class ADRGenerator {
     }
   }
 
-  async generateManually(featureData) {
+  async generateManually(featureData: FeatureData): Promise<string> {
     const adrPath = path.join(this.outputDir, featureData.adrFilename);
     await fs.writeFile(adrPath, featureData.adr_content, 'utf-8');
     return adrPath;
   }
 
-  async checkADRToolsInstallation() {
+  async checkADRToolsInstallation(): Promise<boolean> {
     try {
       await execAsync('which adr');
       return true;
@@ -86,7 +95,7 @@ export class ADRGenerator {
     }
   }
 
-  async initializeADRDirectory() {
+  async initializeADRDirectory(): Promise<void> {
     try {
       // Check if ADR directory is already initialized by looking for existing ADR files
       const adrFiles = await fs.readdir(this.outputDir);

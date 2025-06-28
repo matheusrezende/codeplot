@@ -10,7 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Path to the main source file
-const mainFile = join(__dirname, '..', 'src', 'index.js');
+const mainFile = join(__dirname, '..', 'src', 'index.ts');
 
 // Find tsx executable - prefer local installation, fallback to global
 const localTsx = join(__dirname, '..', 'node_modules', '.bin', 'tsx');

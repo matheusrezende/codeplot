@@ -29,6 +29,9 @@ jobs:
       - name: Check Prettier formatting
         run: npm run format:check
 
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
   test:
     name: Test
     runs-on: ubuntu-latest

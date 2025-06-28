@@ -7,7 +7,7 @@
 
 > 🧠 **Plot your features with AI-powered planning and architecture decisions**
 
-An interactive CLI tool that uses **Gemini 2.5 Pro** to help you plan features and generate Architecture Decision Records (ADRs) for your projects. Get AI-powered technical guidance, implementation plans, and properly structured ADRs without leaving your terminal.
+An interactive CLI tool that uses **Google Gemini AI** to help you plan features and generate Architecture Decision Records (ADRs) for your projects. Get AI-powered technical guidance, implementation plans, and properly structured ADRs without leaving your terminal.
 
 ## Features
 
@@ -84,8 +84,11 @@ codeplot init
 ### Plan a Feature
 
 ```bash
-# Default with streaming enabled
+# Default with streaming enabled (uses gemini-2.5-pro)
 codeplot plan --project-path /path/to/your/project
+
+# Use a different model
+codeplot plan --model gemini-2.0-flash-exp
 
 # Fast typing speed
 codeplot plan --typing-speed fast
@@ -124,9 +127,28 @@ codeplot plan
 
 - `-p, --project-path <path>`: Path to your project repository (default: current directory)
 - `-k, --api-key <key>`: Gemini API key (or set GEMINI_API_KEY env var)
+- `-m, --model <model>`: Gemini model to use (default: gemini-2.5-pro, or set GEMINI_MODEL env var)
 - `-o, --output-dir <dir>`: Output directory for ADRs (default: ./doc/adr)
 - `--no-streaming`: Disable streaming responses (show all at once)
 - `--typing-speed <speed>`: Typing speed for streaming: `fast`, `normal`, `slow` (default: normal)
+
+### Available Models
+
+You can specify different Gemini models based on your needs:
+
+- `gemini-2.5-pro` (default) - Latest and most capable model, best for complex planning
+- `gemini-2.0-flash-exp` - Faster experimental model, good for quick interactions
+- `gemini-1.5-pro` - Previous generation, reliable and well-tested
+- `gemini-1.5-flash` - Optimized for speed and efficiency
+
+```bash
+# Use via CLI flag
+codeplot plan --model gemini-2.0-flash-exp
+
+# Or set environment variable
+export GEMINI_MODEL="gemini-2.0-flash-exp"
+codeplot plan
+```
 
 ## How It Works
 

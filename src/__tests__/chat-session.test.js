@@ -1,9 +1,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { ChatSession } from '../chat-session.js';
 
-// Mock ora
-const mockOra = jest.fn();
-jest.unstable_mockModule('ora', () => ({ default: mockOra }));
+// No UI dependencies to mock - ChatSession is now purely logic
 
 describe('ChatSession', () => {
   let mockModel;
@@ -12,25 +10,31 @@ describe('ChatSession', () => {
   beforeEach(() => {
     mockModel = {
       startChat: jest.fn().mockReturnValue({
-        sendMessageStream: jest.fn(),
+        sendMessage: jest.fn().mockReturnValue({
+          response: {
+            text: jest.fn().mockReturnValue('Mock AI response'),
+          },
+        }),
       }),
     };
     chatSession = new ChatSession(mockModel);
   });
 
   describe('constructor', () => {
-    it('should initialize with default options', () => {
-      expect(chatSession.streamingEnabled).toBe(true);
-      expect(chatSession.typingSpeed).toBe('normal');
-    });
-
-    it('should accept custom options', () => {
-      const customSession = new ChatSession(mockModel, {
-        streaming: false,
-        typingSpeed: 'fast',
+    it('should initialize with model and default feature data', () => {
+      expect(chatSession.model).toBe(mockModel);
+      expect(chatSession.chatSession).toBe(null);
+      expect(chatSession.chatHistory).toEqual([]);
+      expect(chatSession.featureData).toEqual({
+        name: '',
+        description: '',
+        requirements: [],
+        decisions: [],
+        implementation_plan: '',
+        adr_content: '',
+        adrFilename: '',
+        adr_title: '',
       });
-      expect(customSession.streamingEnabled).toBe(false);
-      expect(customSession.typingSpeed).toBe('fast');
     });
   });
 
@@ -109,12 +113,62 @@ Some consequences
     });
   });
 
-  describe('sleep', () => {
-    it('should resolve after specified time', async () => {
-      const start = Date.now();
-      await chatSession.sleep(100);
-      const end = Date.now();
-      expect(end - start).toBeGreaterThanOrEqual(90); // Allow some tolerance
+  describe('sendMessage', () => {
+    beforeEach(() => {
+      chatSession.chatSession = mockModel.startChat();
+    });
+
+    it('should send message and return response', async () => {
+      const message = 'Test message';
+      const response = await chatSession.sendMessage(message);
+
+      expect(mockModel.startChat().sendMessage).toHaveBeenCalledWith(message);
+      expect(response).toBe('Mock AI response');
+      expect(chatSession.chatHistory).toHaveLength(2); // user + AI response
+    });
+
+    it('should handle errors properly', async () => {
+      mockModel.startChat().sendMessage.mockRejectedValue(new Error('API Error'));
+
+      await expect(chatSession.sendMessage('test')).rejects.toThrow(
+        'Failed to get AI response: API Error'
+      );
+    });
+  });
+
+  describe('sendMessageStream', () => {
+    beforeEach(() => {
+      chatSession.chatSession = {
+        sendMessageStream: jest.fn().mockReturnValue({
+          stream: (async function* () {
+            yield { text: () => 'Mock ' };
+            yield { text: () => 'AI ' };
+            yield { text: () => 'response' };
+          })(),
+        }),
+      };
+    });
+
+    it('should stream message chunks and call onChunk callback', async () => {
+      const message = 'Test streaming message';
+      const chunks = [];
+      const onChunk = jest.fn(chunk => chunks.push(chunk));
+
+      const response = await chatSession.sendMessageStream(message, onChunk);
+
+      expect(response).toBe('Mock AI response');
+      expect(onChunk).toHaveBeenCalledTimes(3);
+      expect(chunks).toEqual(['Mock ', 'AI ', 'response']);
+      expect(chatSession.chatHistory).toHaveLength(2); // user + AI response
+    });
+
+    it('should work without onChunk callback', async () => {
+      const message = 'Test streaming message';
+
+      const response = await chatSession.sendMessageStream(message);
+
+      expect(response).toBe('Mock AI response');
+      expect(chatSession.chatHistory).toHaveLength(2); // user + AI response
     });
   });
 

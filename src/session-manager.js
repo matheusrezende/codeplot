@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
 import inquirer from 'inquirer';
-import chalk from 'chalk';
 
 export class SessionManager {
   constructor(projectPath) {
@@ -72,8 +71,9 @@ export class SessionManager {
    * @param {string} sessionName - Name of the session (without .json extension)
    * @param {Object} featureData - Feature-specific data
    * @param {Array} chatHistory - Chat conversation history
+   * @param {Object} extendedData - Extended data including state machine info and codebase
    */
-  async saveSession(sessionName, featureData, chatHistory) {
+  async saveSession(sessionName, featureData, chatHistory, extendedData = {}) {
     try {
       await this.ensureSessionsDir();
 
@@ -82,6 +82,7 @@ export class SessionManager {
         featureData,
         chatHistory,
         lastUpdated: new Date().toISOString(),
+        ...extendedData, // Include machine state, codebase content, etc.
       };
 
       await fs.writeJson(sessionPath, sessionData, { spaces: 2 });
@@ -100,13 +101,13 @@ export class SessionManager {
       const sessions = await this.listSessions();
       const choices = [
         {
-          name: chalk.green('🆕 Start a new feature plan'),
+          name: '🆕 Start a new feature plan',
           value: { type: 'new' },
         },
       ];
 
       if (sessions.length > 0) {
-        choices.push(new inquirer.Separator(chalk.gray('--- Existing Sessions ---')));
+        choices.push(new inquirer.Separator('--- Existing Sessions ---'));
 
         sessions.forEach(session => {
           choices.push({
@@ -168,6 +169,26 @@ export class SessionManager {
       .replace(/-+/g, '-') // Remove duplicate hyphens
       .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
       .substring(0, 50); // Limit length
+  }
+
+  /**
+   * Gets session choice without user interaction - for ink UI to handle
+   * @returns {string} 'new' for new session, or null if no existing sessions
+   */
+  async getSessionChoice() {
+    try {
+      const sessions = await this.listSessions();
+
+      if (sessions.length === 0) {
+        return 'new';
+      }
+
+      // For now, always return 'new' - the ink UI will handle session selection later
+      // This could be enhanced to show existing sessions in the ink UI
+      return 'new';
+    } catch (error) {
+      throw new Error(`Failed to get session choice: ${error.message}`);
+    }
   }
 
   /**

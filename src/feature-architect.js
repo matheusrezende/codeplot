@@ -1,10 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import chalk from 'chalk';
 import path from 'path';
 import { RepoPackager } from './repo-packager.js';
 import { ChatSession } from './chat-session.js';
 import { ADRGenerator } from './adr-generator.js';
 import { SessionManager } from './session-manager.js';
+import { SessionStateMachine } from './session-state-machine.js';
 
 export class FeatureArchitect {
   constructor(options) {
@@ -31,80 +31,39 @@ export class FeatureArchitect {
     });
     this.adrGenerator = new ADRGenerator(this.outputDir);
     this.sessionManager = new SessionManager(this.projectPath);
+    this.stateMachine = null;
   }
 
-  async start() {
-    console.log(chalk.blue('📊  Codeplot'));
-    console.log(chalk.gray('AI-powered feature planning and architecture decisions'));
-    console.log();
-
-    try {
-      // Handle session selection
-      let sessionData = null;
-      let sessionName = null;
-
-      if (this.sessionPath) {
-        // Direct session path provided via --session flag
-        console.log(chalk.yellow(`📂 Loading session from: ${this.sessionPath}`));
-        sessionData = await this.sessionManager.loadSession(this.sessionPath);
-        sessionName = path.basename(this.sessionPath, '.json');
-        console.log(chalk.green('✅ Session loaded successfully'));
-        console.log();
-      } else {
-        // Interactive session selection
-        const sessionChoice = await this.sessionManager.promptUserForSession();
-        if (sessionChoice.type === 'resume') {
-          sessionData = sessionChoice.sessionData;
-          sessionName = sessionChoice.sessionName;
-          console.log(chalk.green(`✅ Resuming session: ${sessionName}`));
-          console.log();
-        }
-      }
-
-      // Step 1: Pack the repository
-      console.log(chalk.yellow('📦 Step 1: Packing repository with repomix...'));
-      const codebaseContent = await this.repoPackager.pack();
-      console.log(chalk.green('✅ Repository packed successfully'));
-      console.log();
-
-      // Step 2: Initialize AI with codebase (and session data if resuming)
-      console.log(chalk.yellow('🤖 Step 2: Initializing AI with codebase analysis...'));
-      await this.chatSession.initialize(codebaseContent, sessionData);
-      console.log(chalk.green('✅ AI initialized and ready'));
-      console.log();
-
-      // Step 3: Interactive feature planning
-      if (sessionData) {
-        console.log(chalk.yellow('💬 Step 3: Resuming interactive feature planning session'));
-        console.log(chalk.gray('Continuing from where you left off...'));
-      } else {
-        console.log(chalk.yellow('💬 Step 3: Interactive feature planning session'));
-        console.log(
-          chalk.gray(
-            'The AI will ask you clarifying questions to understand your feature requirements.'
-          )
-        );
-      }
-      console.log();
-
-      const featureData = await this.chatSession.conductFeaturePlanning(
+  createStateMachine() {
+    if (!this.stateMachine) {
+      this.stateMachine = new SessionStateMachine(
         this.sessionManager,
-        sessionName
+        this.repoPackager,
+        this.chatSession
       );
+    }
+    return this.stateMachine;
+  }
 
-      // Step 4: Generate ADR
-      console.log(chalk.yellow('📝 Step 4: Generating Architecture Decision Record...'));
+  async completeSession(featureData) {
+    try {
+      // Transition to COMPLETED state
+      if (this.stateMachine) {
+        await this.stateMachine.transitionTo(this.stateMachine.states.COMPLETED);
+        await this.stateMachine.saveState();
+      }
+
+      // Generate ADR file
       await this.adrGenerator.generate(featureData);
-      console.log(chalk.green('✅ ADR generated successfully'));
-      console.log();
 
-      console.log(chalk.blue('🎉 Feature planning completed!'));
-      console.log(
-        chalk.gray(`ADR saved to: ${path.join(this.outputDir, featureData.adrFilename)}`)
-      );
+      const adrPath = path.join(this.outputDir, featureData.adrFilename);
+      return {
+        success: true,
+        adrPath,
+        featureData,
+      };
     } catch (error) {
-      console.error(chalk.red('❌ Error during feature planning:'), error.message);
-      throw error;
+      throw new Error(`Failed to complete session: ${error.message}`);
     }
   }
 }

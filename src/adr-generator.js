@@ -2,8 +2,6 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs-extra';
 import path from 'path';
-import ora from 'ora';
-import chalk from 'chalk';
 
 const execAsync = promisify(exec);
 
@@ -13,8 +11,6 @@ export class ADRGenerator {
   }
 
   async generate(featureData) {
-    const spinner = ora('Generating ADR...').start();
-
     try {
       // Ensure output directory exists
       await fs.ensureDir(this.outputDir);
@@ -23,17 +19,16 @@ export class ADRGenerator {
       const hasADRTools = await this.checkADRToolsInstallation();
 
       if (hasADRTools) {
-        return await this.generateWithADRTools(featureData, spinner);
+        return await this.generateWithADRTools(featureData);
       } else {
-        return await this.generateManually(featureData, spinner);
+        return await this.generateManually(featureData);
       }
     } catch (error) {
-      spinner.fail('Failed to generate ADR');
       throw new Error(`Failed to generate ADR: ${error.message}`);
     }
   }
 
-  async generateWithADRTools(featureData, spinner) {
+  async generateWithADRTools(featureData) {
     try {
       // Initialize ADR directory if it doesn't exist
       await this.initializeADRDirectory();
@@ -46,7 +41,6 @@ export class ADRGenerator {
       const docDir = path.join(this.outputDir, '..');
       const adrCommand = `adr new "${safeTitleForCommand}"`;
 
-      spinner.text = 'Creating ADR with adr-tools...';
       // Set EDITOR to prevent adr-tools from opening interactive editor
       const env = { ...process.env, EDITOR: 'true' };
       const { stdout } = await execAsync(adrCommand, { cwd: docDir, env });
@@ -70,48 +64,17 @@ export class ADRGenerator {
         await fs.writeFile(adrPath, featureData.adr_content, 'utf-8');
       }
 
-      spinner.succeed(`ADR generated with adr-tools: ${featureData.adrFilename}`);
-
-      this.showADRSummary(featureData, adrPath);
       return adrPath;
     } catch {
       // Fallback to manual generation if adr-tools fails
-      console.log(chalk.yellow('⚠️  adr-tools failed, falling back to manual generation'));
-      return await this.generateManually(featureData, spinner);
+      return await this.generateManually(featureData);
     }
   }
 
-  async generateManually(featureData, spinner) {
-    spinner.text = 'Creating ADR manually...';
-
+  async generateManually(featureData) {
     const adrPath = path.join(this.outputDir, featureData.adrFilename);
     await fs.writeFile(adrPath, featureData.adr_content, 'utf-8');
-
-    spinner.succeed(`ADR generated manually: ${featureData.adrFilename}`);
-
-    console.log(chalk.yellow('💡 Consider installing adr-tools for better ADR management:'));
-    console.log(chalk.gray('  npm install -g adr-tools'));
-    console.log(chalk.gray('  OR'));
-    console.log(chalk.gray('  brew install adr-tools (on macOS)'));
-    console.log();
-
-    this.showADRSummary(featureData, adrPath);
     return adrPath;
-  }
-
-  showADRSummary(featureData, adrPath) {
-    console.log(chalk.blue('📋 ADR Summary:'));
-    console.log(chalk.gray(`  Title: ${featureData.adr_title || featureData.name}`));
-    console.log(chalk.gray(`  Feature: ${featureData.name}`));
-    console.log(chalk.gray(`  File: ${adrPath}`));
-    console.log(chalk.gray(`  Requirements captured: ${featureData.requirements.length}`));
-
-    if (featureData.implementation_plan) {
-      const planLines = featureData.implementation_plan.split('\n').filter(line => line.trim());
-      console.log(chalk.gray(`  Implementation steps: ${planLines.length}`));
-    }
-
-    console.log();
   }
 
   async checkADRToolsInstallation() {
@@ -147,21 +110,5 @@ export class ADRGenerator {
       // We'll handle this gracefully - ensure directory exists for manual generation
       await fs.ensureDir(this.outputDir);
     }
-  }
-}
-
-export class ManualADRGenerator {
-  constructor(outputDir) {
-    this.outputDir = outputDir;
-  }
-
-  async generate(featureData) {
-    await fs.ensureDir(this.outputDir);
-
-    const adrPath = path.join(this.outputDir, featureData.adrFilename);
-    await fs.writeFile(adrPath, featureData.adr_content, 'utf-8');
-
-    console.log(chalk.green(`✅ ADR saved to: ${adrPath}`));
-    return adrPath;
   }
 }

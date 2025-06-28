@@ -78,6 +78,11 @@ jobs:
           npm link
           codeplot --version
           codeplot init
+          
+      - name: Test bin script directly
+        run: |
+          node bin/codeplot.js --version
+          node bin/codeplot.js init
 
       - name: Test package.json validity
         run: npm pack --dry-run

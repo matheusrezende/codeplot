@@ -1,6 +1,6 @@
 {
   "name": "codeplot",
-  "version": "1.5.2",
+  "version": "2.0.0",
   "description": "Interactive CLI tool for feature planning and ADR generation using Gemini 2.5 Pro",
   "type": "module",
   "main": "bin/codeplot.js",

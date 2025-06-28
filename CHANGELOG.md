@@ -1,3 +1,23 @@
+# [2.0.0](https://github.com/matheusrezende/codeplot/compare/v1.5.2...v2.0.0) (2025-06-28)
+
+
+### Bug Fixes
+
+* resolve LangChain prompt template and repomix parsing issues ([adbf824](https://github.com/matheusrezende/codeplot/commit/adbf824f0af8335d564483e747b4b69f25f7fc6d))
+
+
+### Features
+
+* add React-based terminal UI with Ink ([3aec80b](https://github.com/matheusrezende/codeplot/commit/3aec80b2757c9f782b8864f73cb72a9316dbbdf8))
+* implement Agent-based architecture with LangChain ([958e10f](https://github.com/matheusrezende/codeplot/commit/958e10f6ebe582b8eb3567ec182a21a9706fff4c))
+* prepare package for npm publishing with tsx runtime ([ccec2fe](https://github.com/matheusrezende/codeplot/commit/ccec2fe91873d4953d2cec5e407bb8387a4b6ec8))
+
+
+### BREAKING CHANGES
+
+* Package now requires tsx at runtime for JSX support
+* Application now requires tsx runtime for JSX components
+
 ## [1.5.2](https://github.com/matheusrezende/codeplot/compare/v1.5.1...v1.5.2) (2025-06-27)
 
 

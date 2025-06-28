@@ -3,13 +3,15 @@
   "version": "1.5.2",
   "description": "Interactive CLI tool for feature planning and ADR generation using Gemini 2.5 Pro",
   "type": "module",
-  "main": "src/index.js",
+  "main": "bin/codeplot.js",
   "bin": {
-    "codeplot": "./src/index.js"
+    "codeplot": "./bin/codeplot.js"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "tsx src/index.js plan",
+    "start:debug": "tsx src/index.js plan --debug",
+    "dev": "tsx --watch src/index.js plan",
+    "dev:debug": "tsx --watch src/index.js plan --debug",
     "test": "node --experimental-vm-modules node_modules/.bin/jest",
     "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
@@ -26,7 +28,9 @@
     "audit:check": "npm audit --audit-level=moderate",
     "security:check": "npm run audit:check && npm run lint",
     "outdated:check": "npm outdated",
-    "deps:update": "npm update && npm audit fix"
+    "deps:update": "npm update && npm audit fix",
+    "prepublishOnly": "npm run validate",
+    "prepack": "npm run lint && npm run format:check"
   },
   "keywords": [
     "cli",
@@ -44,12 +48,22 @@
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@langchain/core": "^0.3.61",
+    "@langchain/google-genai": "^0.2.14",
     "chalk": "^5.3.0",
     "child_process": "^1.0.2",
     "commander": "^14.0.0",
     "fs-extra": "^11.2.0",
+    "glob": "^11.0.3",
+    "ink": "^6.0.1",
+    "ink-select-input": "^6.2.0",
+    "ink-text-input": "^6.0.0",
     "inquirer": "^12.6.3",
-    "ora": "^8.1.0"
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
+    "ora": "^8.1.0",
+    "react": "^19.1.0",
+    "tsx": "^4.20.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
@@ -57,13 +71,16 @@
     "@eslint/js": "^9.29.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
+    "@types/node": "^24.0.7",
+    "@types/react": "^19.1.8",
     "eslint": "^9.29.0",
     "husky": "^9.0.10",
     "jest": "^30.0.3",
     "lint-staged": "^16.1.2",
     "nodemon": "^3.1.4",
     "prettier": "^3.2.5",
-    "semantic-release": "^24.2.5"
+    "semantic-release": "^24.2.5",
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -80,6 +97,7 @@
     "access": "public"
   },
   "files": [
+    "bin/",
     "src/",
     "README.md",
     "LICENSE"

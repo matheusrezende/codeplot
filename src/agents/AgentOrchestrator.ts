@@ -1,13 +1,11 @@
 import 'reflect-metadata';
 import { injectable, inject } from 'tsyringe';
+import { DynamicTool } from '@langchain/core/tools';
+import { AIMessage, BaseMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { PlanningAgent } from './PlanningAgent';
 import { ADRGeneratorAgent } from './ADRGeneratorAgent';
+import { MCPToolManager } from '../tools/MCPToolManager.js';
 import { logger } from '../utils/logger';
-
-interface ConversationItem {
-  role: string;
-  content: string;
-}
 
 interface PlanningQuestionData {
   header: string;
@@ -32,57 +30,46 @@ interface ADRResult {
 interface PlanningResponse {
   type: 'planning_question';
   data: PlanningQuestionData;
-  conversationHistory: ConversationItem[];
+  conversationHistory: BaseMessage[];
 }
 
 interface ADRResponse {
   type: 'adr_generated';
   adr: ADRResult;
-  conversationHistory: ConversationItem[];
-}
-
-interface ImplementationResponse {
-  type: 'implementation_steps';
-  steps: string;
+  conversationHistory: BaseMessage[];
 }
 
 interface SessionData {
   featureRequest: string;
   codebaseContext: string;
-  conversationHistory: ConversationItem[];
+  conversationHistory: BaseMessage[];
   currentPhase: string;
   timestamp: Date;
 }
 
-interface PlanningSessionSummary {
-  featureRequest: string;
-  totalQuestions: number;
-  totalResponses: number;
-  currentPhase: string;
-  keyRequirements: string[];
-}
-
 type Phase = 'planning' | 'adr_generation' | 'completed';
+
+const MAX_TURNS = 10;
 
 @injectable()
 export class AgentOrchestrator {
   private planningAgent: PlanningAgent;
   private adrGeneratorAgent: ADRGeneratorAgent;
-  private conversationHistory: ConversationItem[];
-  private currentPhase: Phase;
-  private featureRequest: string;
-  private codebaseContext: string;
+  private mcpToolManager: MCPToolManager;
+  private conversationHistory: BaseMessage[] = [];
+  private currentPhase: Phase = 'planning';
+  private featureRequest = '';
+  private codebaseContext = '';
+  private mcpTools: DynamicTool[] = [];
 
   constructor(
     @inject(PlanningAgent) planningAgent: PlanningAgent,
-    @inject(ADRGeneratorAgent) adrGeneratorAgent: ADRGeneratorAgent
+    @inject(ADRGeneratorAgent) adrGeneratorAgent: ADRGeneratorAgent,
+    @inject(MCPToolManager) mcpToolManager: MCPToolManager
   ) {
     this.planningAgent = planningAgent;
     this.adrGeneratorAgent = adrGeneratorAgent;
-    this.conversationHistory = [];
-    this.currentPhase = 'planning';
-    this.featureRequest = '';
-    this.codebaseContext = '';
+    this.mcpToolManager = mcpToolManager;
   }
 
   async startPlanning(
@@ -91,163 +78,120 @@ export class AgentOrchestrator {
   ): Promise<PlanningResponse> {
     this.featureRequest = featureRequest;
     this.codebaseContext = codebaseContext;
-    this.conversationHistory = [{ role: 'user', content: featureRequest }];
+    this.mcpTools = await this.mcpToolManager.initializeTools();
+
+    const initialContent = `Feature Request: ${featureRequest}\n\nCodebase Context:\n${codebaseContext}`;
+    this.conversationHistory = [new HumanMessage(initialContent)];
 
     logger.debug('AgentOrchestrator: Starting planning', {
       featureRequestLength: featureRequest.length,
       codebaseContextLength: codebaseContext.length,
+      mcpToolCount: this.mcpTools.length,
     });
 
     return this.getNextPlanningQuestion();
   }
 
   async continueConversation(
-    userResponse: string,
-    onChunk?: (chunk: string) => void
+    userResponse: string
   ): Promise<PlanningResponse | { type: 'ready_for_adr' }> {
-    this.conversationHistory.push({ role: 'user', content: userResponse });
-
-    logger.debug('AgentOrchestrator: Continuing conversation', {
-      userResponseLength: userResponse.length,
-      conversationHistoryLength: this.conversationHistory.length,
-      currentPhase: this.currentPhase,
-    });
-
-    // Check if we're ready for ADR generation
-    const readinessEvaluation = await this.planningAgent.evaluateReadiness(
-      this.featureRequest,
-      this.conversationHistory
-    );
-
-    logger.debug('AgentOrchestrator: Readiness evaluation', {
-      readyForADR: readinessEvaluation.readyForADR,
-      missingInformation: readinessEvaluation.missingInformation,
-      reasoning: readinessEvaluation.reasoning,
-    });
-
-    if (readinessEvaluation.readyForADR) {
-      this.currentPhase = 'adr_generation';
-      return { type: 'ready_for_adr' };
-    }
-
-    // Continue planning with another question
-    return this.getNextPlanningQuestion(onChunk);
+    this.conversationHistory.push(new HumanMessage(userResponse));
+    return this.runPlanningLoop();
   }
 
-  private async getNextPlanningQuestion(
-    onChunk?: (chunk: string) => void
-  ): Promise<PlanningResponse> {
-    try {
-      logger.debug('AgentOrchestrator: Getting next planning question', {
-        conversationHistoryLength: this.conversationHistory.length,
-        currentPhase: this.currentPhase,
-      });
+  private async runPlanningLoop(): Promise<PlanningResponse | { type: 'ready_for_adr' }> {
+    let turns = 0;
+    while (turns < MAX_TURNS) {
+      turns++;
 
-      const response = await this.planningAgent.askQuestion(
-        this.featureRequest,
-        this.conversationHistory,
-        this.codebaseContext,
-        onChunk
+      const readinessEvaluation = await this.planningAgent.evaluateReadiness(
+        this.conversationHistory
       );
-
-      if (response.success && response.data) {
-        // Add the AI's question to conversation history
-        this.conversationHistory.push({
-          role: 'assistant',
-          content: response.data.bodyText,
-        });
-
-        logger.info('🤖 AI Question:', {
-          header: response.data.header,
-          question: response.data.optionText,
-          optionsCount: response.data.options?.length || 0,
-          options:
-            response.data.options?.map(
-              (opt, idx: number) =>
-                `${idx + 1}. ${opt.title}${opt.recommended ? ' ⭐ RECOMMENDED' : ''}`
-            ) || [],
-        });
-
-        return {
-          type: 'planning_question',
-          data: response.data,
-          conversationHistory: this.conversationHistory,
-        };
-      } else {
-        logger.error('AgentOrchestrator: Planning agent returned error', {
-          error: response.error,
-          rawResponse: response.rawResponse,
-        });
-        throw new Error(`Planning agent error: ${response.error}`);
+      if (readinessEvaluation.readyForADR) {
+        this.currentPhase = 'adr_generation';
+        return { type: 'ready_for_adr' };
       }
-    } catch (error) {
-      logger.errorWithStack(
-        error as Error,
-        'AgentOrchestrator: Failed to get next planning question',
-        {
-          conversationHistoryLength: this.conversationHistory.length,
-          currentPhase: this.currentPhase,
-        }
+
+      const response: AIMessage = await this.planningAgent.askQuestion(
+        this.conversationHistory,
+        this.mcpTools
       );
-      // Re-throw without modification in debug mode to preserve stack trace
-      throw error;
+
+      this.conversationHistory.push(response);
+
+      if (response.tool_calls && response.tool_calls.length > 0) {
+        const toolMessages = await this.executeToolCalls(response);
+        this.conversationHistory.push(...toolMessages);
+        continue;
+      }
+
+      return this.processFinalResponse(response);
     }
+
+    throw new Error('Maximum conversation turns reached.');
+  }
+
+  private async executeToolCalls(response: AIMessage): Promise<ToolMessage[]> {
+    const toolMessages: ToolMessage[] = [];
+    if (!response.tool_calls) return toolMessages;
+
+    for (const toolCall of response.tool_calls) {
+      const tool = this.mcpTools.find(t => t.name === toolCall.name);
+      if (tool) {
+        const toolOutput = await tool.invoke(toolCall.args);
+        toolMessages.push(
+          new ToolMessage({
+            content: toolOutput,
+            tool_call_id: toolCall.id!,
+          })
+        );
+      }
+    }
+    return toolMessages;
+  }
+
+  private processFinalResponse(response: AIMessage): PlanningResponse {
+    const parsed = this.planningAgent.parseResponse(response.content as string);
+
+    if (!parsed.success || !parsed.data) {
+      throw new Error(`Failed to parse agent response: ${parsed.error}`);
+    }
+
+    return {
+      type: 'planning_question',
+      data: parsed.data,
+      conversationHistory: this.conversationHistory,
+    };
+  }
+
+  private async getNextPlanningQuestion(): Promise<PlanningResponse> {
+    const response = await this.runPlanningLoop();
+    if (response.type === 'ready_for_adr') {
+      throw new Error('Agent is ready for ADR, but another question was requested.');
+    }
+    return response;
   }
 
   async generateADR(): Promise<ADRResponse> {
     if (this.currentPhase !== 'adr_generation') {
-      throw new Error('Not ready for ADR generation. Complete planning phase first.');
+      throw new Error('Not ready for ADR generation.');
     }
 
-    try {
-      const adrResult = await this.adrGeneratorAgent.generateADR(
-        this.featureRequest,
-        this.conversationHistory,
-        this.codebaseContext
-      );
+    const adrResult = await this.adrGeneratorAgent.generateADR(
+      this.featureRequest,
+      this.conversationHistory,
+      this.codebaseContext
+    );
 
-      this.currentPhase = 'completed';
+    this.currentPhase = 'completed';
 
-      return {
-        type: 'adr_generated',
-        adr: adrResult,
-        conversationHistory: this.conversationHistory,
-      };
-    } catch (error) {
-      throw new Error(`Failed to generate ADR: ${(error as Error).message}`);
-    }
+    return {
+      type: 'adr_generated',
+      adr: adrResult,
+      conversationHistory: this.conversationHistory,
+    };
   }
 
-  async generateDetailedImplementation(adrContent: string): Promise<ImplementationResponse> {
-    try {
-      const detailedSteps = await this.adrGeneratorAgent.generateImplementationSteps(
-        adrContent,
-        this.codebaseContext
-      );
-
-      return {
-        type: 'implementation_steps',
-        steps: detailedSteps,
-      };
-    } catch (error) {
-      throw new Error(`Failed to generate implementation steps: ${(error as Error).message}`);
-    }
-  }
-
-  // Utility methods
-  getCurrentPhase(): Phase {
-    return this.currentPhase;
-  }
-
-  getConversationHistory(): ConversationItem[] {
-    return this.conversationHistory;
-  }
-
-  getFeatureRequest(): string {
-    return this.featureRequest;
-  }
-
-  // Export conversation for session management
   exportSession(): SessionData {
     return {
       featureRequest: this.featureRequest,
@@ -258,33 +202,10 @@ export class AgentOrchestrator {
     };
   }
 
-  // Import conversation from saved session
   importSession(sessionData: SessionData): void {
     this.featureRequest = sessionData.featureRequest || '';
     this.codebaseContext = sessionData.codebaseContext || '';
     this.conversationHistory = sessionData.conversationHistory || [];
     this.currentPhase = (sessionData.currentPhase as Phase) || 'planning';
-  }
-
-  // Reset for new feature planning
-  reset(): void {
-    this.conversationHistory = [];
-    this.currentPhase = 'planning';
-    this.featureRequest = '';
-    this.codebaseContext = '';
-  }
-
-  // Get a summary of the planning session
-  getPlanningSessionSummary(): PlanningSessionSummary {
-    const userResponses = this.conversationHistory.filter(item => item.role === 'user');
-    const aiQuestions = this.conversationHistory.filter(item => item.role === 'assistant');
-
-    return {
-      featureRequest: this.featureRequest,
-      totalQuestions: aiQuestions.length,
-      totalResponses: userResponses.length - 1, // -1 to exclude initial feature request
-      currentPhase: this.currentPhase,
-      keyRequirements: userResponses.slice(1).map(response => response.content), // Skip initial feature request
-    };
   }
 }

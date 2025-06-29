@@ -1,14 +1,10 @@
 import 'reflect-metadata';
 import { injectable, inject } from 'tsyringe';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { ChatPromptTemplate, MessagesPlaceholder } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import { logger } from '../utils/logger';
-
-interface ConversationItem {
-  role: string;
-  content: string;
-}
 
 interface ADRResult {
   adrContent: string;
@@ -30,18 +26,15 @@ export class ADRGeneratorAgent {
       model: modelName,
       apiKey,
       temperature: 0.7,
-      streaming: true, // Enable streaming support
+      streaming: true,
     });
 
     this.systemPrompt = `You are a Senior Software Architect focused on ADR CREATION ONLY.
-
 Your SOLE responsibility is to assist the user in creating Architecture Decision Records (ADRs) based on gathered requirements and context.
-
 ## Your Process:
 1. Understand the feature request and context
 2. Use user requirements and context to suggest a comprehensive ADR
 3. Ensure the ADR follows proper format and contains necessary details
-
 ## Response Format:
 You must structure your response in markdown including these sections:
 - # ADR: [Title]
@@ -51,31 +44,27 @@ You must structure your response in markdown including these sections:
 - ## Status
 - ## Consequences
 - ## Implementation Plan
-
 ## Important Formatting Rules:
 - Use exactly one # header for the ADR title
 - Provide clear and concise context, decision, and consequences
 - Include a feasible implementation plan with step-by-step guidance
-
 ## Critical Rules:
 - NEVER create ADRs without user input
 - NEVER generate code or implementation directly
 - Focus only on structuring user-provided information into ADR format
 - Ask questions if context or requirements are unclear
-
 ## When to Proceed:
 Only begin ADR creation when you have complete understanding of:
 ✓ Feature behavior and requirements
 ✓ User interactions and edge cases
 ✓ Data flows and business rules
 ✓ Performance and security considerations
-
 Proceeding without all necessary information risks creating an incomplete or incorrect ADR. Always seek clarification when needed.`;
   }
 
   async generateADR(
     featureRequest: string,
-    conversationHistory: ConversationItem[],
+    conversationHistory: BaseMessage[],
     codebaseContext: string
   ): Promise<ADRResult> {
     logger.debug('ADRGeneratorAgent: generateADR called', {
@@ -86,26 +75,13 @@ Proceeding without all necessary information risks creating an incomplete or inc
 
     const prompt = ChatPromptTemplate.fromMessages([
       ['system', this.systemPrompt],
-      [
-        'human',
-        `Feature Request: {featureRequest}
-
-Codebase Context:
-{codebaseContext}
-
-Conversation History:
-{conversationHistory}
-
-Generate an ADR in markdown format based on this information.`,
-      ],
+      new MessagesPlaceholder('history'),
     ]);
 
     const chain = prompt.pipe(this.model).pipe(new StringOutputParser());
 
     const adrResult = await chain.invoke({
-      featureRequest,
-      codebaseContext,
-      conversationHistory: this.formatConversationHistory(conversationHistory),
+      history: this.prepareHistoryForADR(featureRequest, codebaseContext, conversationHistory),
     });
 
     logger.info('ADRGeneratorAgent: ADR generated successfully', {
@@ -118,6 +94,17 @@ Generate an ADR in markdown format based on this information.`,
       adrTitle: this.extractTitle(adrResult),
       implementationPlan: this.extractImplementationPlan(adrResult),
     };
+  }
+
+  private prepareHistoryForADR(
+    featureRequest: string,
+    codebaseContext: string,
+    history: BaseMessage[]
+  ): BaseMessage[] {
+    const initialMessage = new HumanMessage(
+      `Feature Request: ${featureRequest}\n\nCodebase Context:\n${codebaseContext}`
+    );
+    return [initialMessage, ...history.slice(1)];
   }
 
   async generateImplementationSteps(adrContent: string, codebaseContext: string): Promise<string> {
@@ -151,21 +138,8 @@ Generate detailed implementation steps that reference specific files and provide
     });
   }
 
-  formatConversationHistory(history: ConversationItem[]): string {
-    return history
-      .map(item => {
-        if (item.role === 'user') {
-          return `**Requirement**: ${item.content}`;
-        } else if (item.role === 'assistant') {
-          return `**Question**: ${item.content}`;
-        }
-        return `**${item.role}**: ${item.content}`;
-      })
-      .join('\\n\\n');
-  }
-
   extractTitle(adrContent: string): string {
-    const titleMatch = adrContent.match(/# ADR:\\s*\\d+\\s*-\\s*(.+)/);
+    const titleMatch = adrContent.match(/# ADR:\\s*\\d*\\s*-*\\s*(.+)/);
     return titleMatch ? titleMatch[1].trim() : 'Untitled ADR';
   }
 
@@ -175,8 +149,6 @@ Generate detailed implementation steps that reference specific files and provide
   }
 
   getNextADRNumber(): string {
-    // In a real implementation, this would read existing ADRs to determine the next number
-    // For now, we'll use a timestamp-based approach
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');

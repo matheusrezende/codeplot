@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import ChatView from './ChatView.jsx';
 import InitializationView from './InitializationView.jsx';
-import { FeatureArchitect } from '../feature-architect.js';
 import { logger } from '../utils/logger.js';
 
-const App = ({ options }) => {
+const App = ({ featureArchitect }) => {
   const { exit } = useApp();
   const [appState, setAppState] = useState('initializing'); // initializing, planning, completed, error
   const [statusMessage, setStatusMessage] = useState('Starting Codeplot...');
   const [errorMessage, setErrorMessage] = useState(null);
-  const [featureArchitect, setFeatureArchitect] = useState(null);
   const [repomixSummary, setRepomixSummary] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [isStreamingAnalysis, setIsStreamingAnalysis] = useState(false);
@@ -19,25 +17,20 @@ const App = ({ options }) => {
   useEffect(() => {
     const initialize = async () => {
       try {
-        logger.debug('App: Starting initialization', { options: { ...options, apiKey: '[REDACTED]' } });
+        logger.debug('App: Starting initialization with injected FeatureArchitect');
         setStatusMessage('Initializing Feature Architect...');
-        
-        // Create FeatureArchitect instance
-        logger.debug('App: Creating FeatureArchitect instance');
-        const architect = new FeatureArchitect(options);
-        setFeatureArchitect(architect);
         
         setStatusMessage('Packing repository with repomix...');
         
         // Pack the codebase
         logger.debug('App: Packing codebase');
-        const packResult = await architect.repoPackager.pack();
+        const packResult = await featureArchitect.repoPackager.pack();
         setRepomixSummary(packResult.summary);
         
         // Initialize AI chat session
         try {
           logger.debug('App: Initializing AI chat session');
-          const initResult = await architect.chatSession.initialize(packResult.content);
+          const initResult = await featureArchitect.chatSession.initialize(packResult.content);
           
           if (initResult.isNewSession && initResult.analysis) {
             logger.debug('App: Got AI analysis for new session');
@@ -66,7 +59,7 @@ const App = ({ options }) => {
     };
 
     initialize();
-  }, []);
+  }, [featureArchitect]);
 
   const handlePlanningComplete = async (featureData) => {
     try {

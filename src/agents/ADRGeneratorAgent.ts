@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -15,11 +17,15 @@ interface ADRResult {
   implementationPlan: string;
 }
 
+@injectable()
 export class ADRGeneratorAgent {
   private model: ChatGoogleGenerativeAI;
   private systemPrompt: string;
 
-  constructor(apiKey: string, modelName: string = 'gemini-2.5-pro') {
+  constructor(
+    @inject('ApiKey') apiKey: string,
+    @inject('ModelName') modelName: string = 'gemini-2.5-pro'
+  ) {
     this.model = new ChatGoogleGenerativeAI({
       model: modelName,
       apiKey,

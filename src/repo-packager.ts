@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
@@ -20,11 +22,12 @@ interface PackResult {
   summary: PackSummary;
 }
 
+@injectable()
 export class RepoPackager {
   public projectPath: string;
   private outputFile: string;
 
-  constructor(projectPath: string) {
+  constructor(@inject('ProjectPath') projectPath: string) {
     this.projectPath = projectPath;
     this.outputFile = path.join(projectPath, 'repomix-output.txt');
   }

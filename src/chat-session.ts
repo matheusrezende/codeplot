@@ -1,3 +1,7 @@
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
+
+@injectable()
 export class ChatSession {
   public model: any;
   public chatSession: any | null;
@@ -5,7 +9,10 @@ export class ChatSession {
   public featureData: Record<string, any>;
   public codebaseContent: any;
 
-  constructor(model: any, _options: Record<string, any> = {}) {
+  constructor(
+    @inject('GenerativeModel') model: any,
+    @inject('ChatSessionOptions') _options: Record<string, any> = {}
+  ) {
     this.model = model;
     this.chatSession = null;
 

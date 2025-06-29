@@ -1,4 +1,5 @@
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
 import path from 'path';
 import { RepoPackager } from './repo-packager.js';
 import { ChatSession } from './chat-session.js';
@@ -26,20 +27,24 @@ interface CompletionResult {
   featureData: FeatureData;
 }
 
+@injectable()
 export class FeatureArchitect {
   private projectPath: string;
   private apiKey: string;
   private outputDir: string;
   private streaming: boolean;
   private typingSpeed: string;
-  private genAI: GoogleGenerativeAI;
-  private model: GenerativeModel;
 
   public repoPackager: RepoPackager;
   public chatSession: ChatSession;
   public adrGenerator: ADRGenerator;
 
-  constructor(options: FeatureArchitectOptions) {
+  constructor(
+    @inject('FeatureArchitectOptions') options: FeatureArchitectOptions,
+    @inject(RepoPackager) repoPackager: RepoPackager,
+    @inject(ChatSession) chatSession: ChatSession,
+    @inject(ADRGenerator) adrGenerator: ADRGenerator
+  ) {
     this.projectPath = options.projectPath;
     this.apiKey = options.apiKey || process.env.GEMINI_API_KEY || '';
     this.outputDir = options.outputDir;
@@ -52,15 +57,9 @@ export class FeatureArchitect {
       );
     }
 
-    this.genAI = new GoogleGenerativeAI(this.apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
-
-    this.repoPackager = new RepoPackager(this.projectPath);
-    this.chatSession = new ChatSession(this.model, {
-      streaming: this.streaming,
-      typingSpeed: this.typingSpeed,
-    });
-    this.adrGenerator = new ADRGenerator(this.outputDir);
+    this.repoPackager = repoPackager;
+    this.chatSession = chatSession;
+    this.adrGenerator = adrGenerator;
   }
 
   async completeSession(featureData: FeatureData): Promise<CompletionResult> {

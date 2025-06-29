@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs-extra';
@@ -12,10 +14,11 @@ interface FeatureData {
   name?: string;
 }
 
+@injectable()
 export class ADRGenerator {
   private outputDir: string;
 
-  constructor(outputDir: string) {
+  constructor(@inject('OutputDir') outputDir: string) {
     this.outputDir = outputDir;
   }
 

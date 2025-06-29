@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 
+import 'reflect-metadata';
 import { Command } from 'commander';
 import { render } from 'ink';
 import React from 'react';
 import App from './ui/App.jsx';
 import { logger } from './utils/logger.js';
+import container, { configureContainer } from './container.js';
+import { FeatureArchitect } from './feature-architect.js';
 
 interface PlanOptions {
   projectPath: string;
@@ -71,12 +74,24 @@ program
         return; // errorWithStack will throw in debug mode
       }
 
+      // Configure the DI container with runtime options
+      configureContainer({
+        projectPath: options.projectPath,
+        apiKey: options.apiKey || process.env.GEMINI_API_KEY || '',
+        outputDir: options.outputDir,
+        streaming: options.streaming,
+        typingSpeed: options.typingSpeed,
+      });
+
+      // Resolve the FeatureArchitect from the container
+      const featureArchitect = container.resolve(FeatureArchitect);
+
       // Set up global error handlers
       setupGlobalErrorHandlers();
 
-      // Render the ink App component
+      // Render the ink App component with the injected FeatureArchitect
       logger.debug('Rendering React App component');
-      render(React.createElement(App, { options }));
+      render(React.createElement(App, { featureArchitect }));
     } catch (error) {
       logger.errorWithStack(error as Error, 'Failed to start application');
       // In non-debug mode, show user-friendly error and exit

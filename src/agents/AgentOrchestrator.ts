@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+import { injectable, inject } from 'tsyringe';
 import { PlanningAgent } from './PlanningAgent';
 import { ADRGeneratorAgent } from './ADRGeneratorAgent';
 import { logger } from '../utils/logger';
@@ -62,6 +64,7 @@ interface PlanningSessionSummary {
 
 type Phase = 'planning' | 'adr_generation' | 'completed';
 
+@injectable()
 export class AgentOrchestrator {
   private planningAgent: PlanningAgent;
   private adrGeneratorAgent: ADRGeneratorAgent;
@@ -70,9 +73,12 @@ export class AgentOrchestrator {
   private featureRequest: string;
   private codebaseContext: string;
 
-  constructor(apiKey: string, modelName: string = 'gemini-2.5-pro') {
-    this.planningAgent = new PlanningAgent(apiKey, modelName);
-    this.adrGeneratorAgent = new ADRGeneratorAgent(apiKey, modelName);
+  constructor(
+    @inject(PlanningAgent) planningAgent: PlanningAgent,
+    @inject(ADRGeneratorAgent) adrGeneratorAgent: ADRGeneratorAgent
+  ) {
+    this.planningAgent = planningAgent;
+    this.adrGeneratorAgent = adrGeneratorAgent;
     this.conversationHistory = [];
     this.currentPhase = 'planning';
     this.featureRequest = '';

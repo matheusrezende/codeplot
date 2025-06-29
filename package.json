@@ -63,7 +63,9 @@
     "marked-terminal": "^7.3.0",
     "ora": "^8.1.0",
     "react": "^19.1.0",
-    "tsx": "^4.20.3"
+    "reflect-metadata": "^0.2.2",
+    "tsx": "^4.20.3",
+    "tsyringe": "^4.10.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

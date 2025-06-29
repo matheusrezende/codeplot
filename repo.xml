@@ -1,0 +1,930 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where comments have been removed, empty lines have been removed, content has been compressed (code blocks are separated by ⋮---- delimiter).
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: packages/api/prisma/client/, packages/infra/src/.terraform, **/*/playwright-report, **/*.xml, doc/**/*.md, **/*.md
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Code comments have been removed from supported file types
+- Empty lines have been removed from all files
+- Content has been compressed - code blocks are separated by ⋮---- delimiter
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.github/
+  codeql/
+    codeql-config.yml
+  workflows/
+    ci.yml
+    codeql.yml
+  dependabot.yml
+.husky/
+  commit-msg
+  pre-commit
+bin/
+  codeplot.js
+src/
+  index.ts
+.env.example
+.gitignore
+.lintstagedrc.json
+.npmrc-github
+.prettierignore
+.prettierrc
+.prettierrc.json
+.releaserc.json
+commitlint.config.js
+eslint.config.js
+jest.config.js
+LICENSE
+package-github.json
+package.json
+setup.sh
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".github/codeql/codeql-config.yml">
+name: "CodeQL Config"
+disable-default-queries: false
+queries:
+  - name: security-extended
+    uses: security-extended
+  - name: security-and-quality
+    uses: security-and-quality
+paths-ignore:
+  - node_modules/**
+  - coverage/**
+  - dist/**
+  - build/**
+  - '**/*.test.js'
+  - '**/*.spec.js'
+  - docs/**
+paths:
+  - src/**
+languages:
+  - javascript
+</file>
+
+<file path=".env.example">
+# Gemini API Key
+# Get your API key from: https://aistudio.google.com/
+GEMINI_API_KEY=your_gemini_api_key_here
+
+# Optional: Default project path
+# DEFAULT_PROJECT_PATH=/path/to/your/project
+
+# Optional: Default output directory for ADRs
+# DEFAULT_OUTPUT_DIR=./docs/adrs
+</file>
+
+<file path=".prettierignore">
+node_modules/
+coverage/
+dist/
+*.min.js
+*.lock
+package-lock.json
+CHANGELOG.md
+</file>
+
+<file path=".prettierrc">
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf"
+}
+</file>
+
+<file path=".prettierrc.json">
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf"
+}
+</file>
+
+<file path=".releaserc.json">
+{
+  "branches": [
+    "main",
+    {
+      "name": "beta",
+      "prerelease": true
+    }
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    "@semantic-release/changelog",
+    "@semantic-release/npm",
+    "@semantic-release/github",
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["package.json", "CHANGELOG.md"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
+}
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Matheus
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="package-github.json">
+{
+  "name": "@matheusrezende/codeplot",
+  "version": "1.4.0",
+  "description": "Interactive CLI tool for feature planning and ADR generation using Gemini 2.5 Pro",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "codeplot": "./src/index.js"
+  },
+  "keywords": [
+    "cli",
+    "codeplot",
+    "architecture",
+    "adr",
+    "feature-planning",
+    "gemini",
+    "ai",
+    "planning",
+    "development",
+    "plotting"
+  ],
+  "author": "Matheus",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "chalk": "^5.3.0",
+    "child_process": "^1.0.2",
+    "commander": "^14.0.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^12.6.3",
+    "ora": "^8.1.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matheusrezende/codeplot.git"
+  },
+  "homepage": "https://github.com/matheusrezende/codeplot#readme",
+  "bugs": {
+    "url": "https://github.com/matheusrezende/codeplot/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "files": ["src/", "README.md", "LICENSE"]
+}
+</file>
+
+<file path="setup.sh">
+echo "📊  Codeplot Setup"
+echo "========================"
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed"
+    echo "📥 Please install Node.js (>=18.0.0) from:"
+    echo "   https://nodejs.org/"
+    echo "   or use a version manager like nvm:"
+    echo "   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash"
+    echo "   nvm install --lts"
+    exit 1
+fi
+echo "✅ Node.js is installed: $(node --version)"
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm is not available"
+    exit 1
+fi
+echo "✅ npm is available: $(npm --version)"
+echo "📦 Installing dependencies..."
+npm install
+if [ $? -eq 0 ]; then
+    echo "✅ Dependencies installed successfully"
+else
+    echo "❌ Failed to install dependencies"
+    exit 1
+fi
+echo "🔗 Making CLI globally available..."
+npm link
+if [ $? -eq 0 ]; then
+    echo "✅ CLI linked successfully"
+else
+    echo "❌ Failed to link CLI"
+    exit 1
+fi
+echo ""
+echo "🎉 Setup completed!"
+echo ""
+echo "Next steps:"
+echo "1. Set your Gemini API key:"
+echo "   export GEMINI_API_KEY='your_api_key_here'"
+echo ""
+echo "2. Test the CLI:"
+echo "   codeplot init"
+echo ""
+echo "3. Plan a feature:"
+echo "   codeplot plan --project-path /path/to/your/project"
+</file>
+
+<file path=".github/dependabot.yml">
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "matheusrezende"
+    assignees:
+      - "matheusrezende"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    ignore:
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+    groups:
+      development-dependencies:
+        dependency-type: "development"
+        patterns:
+          - "@commitlint/*"
+          - "@semantic-release/*"
+          - "eslint*"
+          - "prettier"
+          - "husky"
+          - "lint-staged"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "matheusrezende"
+    assignees:
+      - "matheusrezende"
+    commit-message:
+      prefix: "chore(ci)"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "automated"
+</file>
+
+<file path=".husky/commit-msg">
+npx --no -- commitlint --edit $1
+</file>
+
+<file path=".husky/pre-commit">
+npm run precommit
+</file>
+
+<file path="bin/codeplot.js">
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const mainFile = join(__dirname, '..', 'src', 'index.ts');
+const localTsx = join(__dirname, '..', 'node_modules', '.bin', 'tsx');
+const tsxCommand = existsSync(localTsx) ? localTsx : 'tsx';
+const child = spawn(tsxCommand, [mainFile, ...process.argv.slice(2)], {
+⋮----
+cwd: process.cwd(),
+⋮----
+child.on('close', code => {
+process.exit(code);
+⋮----
+child.on('error', err => {
+⋮----
+console.error(
+⋮----
+console.error('Please report this issue at: https://github.com/matheusrezende/codeplot/issues');
+process.exit(1);
+⋮----
+console.error('Error starting application:', err.message);
+</file>
+
+<file path=".lintstagedrc.json">
+{
+  "*.{js,ts,tsx}": ["eslint --fix", "prettier --write"],
+  "*.{md,json}": ["prettier --write"]
+}
+</file>
+
+<file path=".npmrc-github">
+@matheusrezende:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+</file>
+
+<file path="commitlint.config.js">
+message => message.startsWith('chore(release):'),
+</file>
+
+<file path="eslint.config.js">
+
+</file>
+
+<file path="jest.config.js">
+
+</file>
+
+<file path="src/index.ts">
+
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "sourceMap": false,
+    "removeComments": true,
+    "noEmitOnError": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "resolveJsonModule": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+</file>
+
+<file path=".github/workflows/codeql.yml">
+name: "CodeQL"
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '22 6 * * 1'
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'javascript' ]
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Setup Volta
+      uses: volta-cli/action@v4
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        config-file: ./.github/codeql/codeql-config.yml
+        queries: security-extended,security-and-quality
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+</file>
+
+<file path=".gitignore">
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
+.grunt
+
+# Bower dependency directory (https://bower.io/)
+bower_components
+
+# node-waf configuration
+.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+build/Release
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript v1 declaration files
+typings/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.test
+.env.local
+.env.production
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Gatsby files
+.cache/
+public
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+
+# Logs
+logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Repomix output files
+repomix-output.txt
+
+# Test ADR files
+docs/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Semantic release
+.semantic-release/
+
+# Husky
+.husky/_/
+
+# Local environment files
+.env.local
+.env.*.local
+
+# Editor directories and files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Yarn
+yarn-error.log
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# pnpm
+.pnpm-debug.log*
+
+# Codeplot sessions
+.codeplot/
+
+
+# ConPort
+context_portal/
+</file>
+
+<file path=".github/workflows/ci.yml">
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [main, develop, beta]
+  pull_request:
+    branches: [main, develop]
+env:
+  NODE_VERSION: '22.17.0'
+jobs:
+  lint-and-format:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Volta
+        uses: volta-cli/action@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint
+      - name: Check Prettier formatting
+        run: npm run format:check
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Volta
+        uses: volta-cli/action@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm run test:coverage
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == 20
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: ./coverage/
+          flags: unittests
+          name: codecov-umbrella
+  build-test:
+    name: Build and Integration Test
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Volta
+        uses: volta-cli/action@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Test CLI installation
+        run: |
+          npm link
+          codeplot --version
+          codeplot init
+      - name: Test bin script directly
+        run: |
+          node bin/codeplot.js --version
+          node bin/codeplot.js init
+      - name: Test package.json validity
+        run: npm pack --dry-run
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Volta
+        uses: volta-cli/action@v4
+      - name: Install dependencies
+        run: npm ci
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, test, build-test, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+      repository-projects: write
+      checks: write
+      statuses: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_TOKEN }}
+      - name: Setup Volta
+        uses: volta-cli/action@v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+      - name: Install dependencies
+        run: npm ci
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Release to NPM
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run semantic-release
+      - name: Setup for GitHub Packages
+        uses: volta-cli/action@v4
+        with:
+          registry-url: 'https://npm.pkg.github.com'
+      - name: Prepare GitHub Package
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node -e "const pkg = require('./package-github.json'); pkg.version = process.argv[1]; require('fs').writeFileSync('./package-github.json', JSON.stringify(pkg, null, 2));" "$VERSION"
+          cp package-github.json package.json
+          cp .npmrc-github .npmrc
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: npm publish --registry=https://npm.pkg.github.com
+</file>
+
+<file path="package.json">
+{
+  "name": "codeplot",
+  "version": "3.1.0",
+  "description": "Interactive CLI tool for feature planning and ADR generation using Gemini 2.5 Pro",
+  "type": "module",
+  "main": "bin/codeplot.js",
+  "bin": {
+    "codeplot": "./bin/codeplot.js"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts plan",
+    "start:debug": "tsx src/index.ts plan --debug",
+    "dev": "tsx --watch src/index.ts plan",
+    "dev:debug": "tsx --watch src/index.ts plan --debug",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts *.md *.json",
+    "format:check": "prettier --check src/**/*.ts *.md *.json",
+    "typecheck": "tsc --noEmit",
+    "precommit": "lint-staged",
+    "prepare": "husky install",
+    "commitlint": "commitlint --edit --last",
+    "semantic-release": "semantic-release",
+    "validate": "npm run lint && npm run format:check && npm run test",
+    "audit:fix": "npm audit fix",
+    "audit:check": "npm audit --audit-level=moderate",
+    "security:check": "npm run audit:check && npm run lint",
+    "outdated:check": "npm outdated",
+    "deps:update": "npm update && npm audit fix",
+    "prepublishOnly": "npm run validate",
+    "prepack": "npm run lint && npm run format:check"
+  },
+  "keywords": [
+    "cli",
+    "codeplot",
+    "architecture",
+    "adr",
+    "feature-planning",
+    "gemini",
+    "ai",
+    "planning",
+    "development",
+    "plotting"
+  ],
+  "author": "Matheus",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@langchain/core": "^0.3.61",
+    "@langchain/google-genai": "^0.2.14",
+    "chalk": "^5.3.0",
+    "child_process": "^1.0.2",
+    "commander": "^14.0.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^11.0.3",
+    "ink": "^6.0.1",
+    "ink-select-input": "^6.2.0",
+    "ink-text-input": "^6.0.0",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
+    "ora": "^8.1.0",
+    "react": "^19.1.0",
+    "reflect-metadata": "^0.2.2",
+    "tsx": "^4.20.3",
+    "tsyringe": "^4.10.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "@eslint/js": "^9.29.0",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.0.7",
+    "@types/react": "^19.1.8",
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "husky": "^9.0.10",
+    "jest": "^30.0.3",
+    "lint-staged": "^16.1.2",
+    "nodemon": "^3.1.4",
+    "prettier": "^3.2.5",
+    "semantic-release": "^24.2.5",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matheusrezende/codeplot.git"
+  },
+  "homepage": "https://github.com/matheusrezende/codeplot#readme",
+  "bugs": {
+    "url": "https://github.com/matheusrezende/codeplot/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "volta": {
+    "node": "22.17.0",
+    "npm": "10.9.2"
+  }
+}
+</file>
+
+</files>

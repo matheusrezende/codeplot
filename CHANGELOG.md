@@ -1,3 +1,22 @@
+# [3.0.0](https://github.com/matheusrezende/codeplot/compare/v2.0.0...v3.0.0) (2025-06-29)
+
+
+### Bug Fixes
+
+* fixes issues in rendering options ([d88b498](https://github.com/matheusrezende/codeplot/commit/d88b49888dafc9c6245f68a2b461a51a39e6e142))
+
+
+### Features
+
+* convert all source files from JavaScript to TypeScript ([07122eb](https://github.com/matheusrezende/codeplot/commit/07122eb2bc217b29c973bdf64bbd45789a48fe95))
+* migrate to TypeScript build system ([f6ee402](https://github.com/matheusrezende/codeplot/commit/f6ee402610356c3ba8220fb845b4b3690aabe779))
+* update CLI launcher to execute TypeScript code ([fb7c6f8](https://github.com/matheusrezende/codeplot/commit/fb7c6f87f15d514bc335e48b9964dcdb557438f0))
+
+
+### BREAKING CHANGES
+
+* Project now requires TypeScript compilation
+
 # [2.0.0](https://github.com/matheusrezende/codeplot/compare/v1.5.2...v2.0.0) (2025-06-28)
 
 

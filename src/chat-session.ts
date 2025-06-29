@@ -27,106 +27,78 @@ export class ChatSession {
 
   async initialize(
     codebaseContent: any,
-    sessionData: Record<string, any> | null = null,
     _onAnalysisChunk: ((chunk: string) => void) | null = null
-  ): Promise<string | { isNewSession: boolean; analysis: string }> {
-    if (sessionData && sessionData.chatHistory && sessionData.chatHistory.length > 0) {
-      // Resuming from existing session
-      this.featureData = sessionData.featureData || this.featureData;
-      this.chatHistory = sessionData.chatHistory || [];
+  ): Promise<{ isNewSession: boolean; analysis: string }> {
+    // Starting new session - store codebase content for later analysis
+    this.codebaseContent = codebaseContent;
 
-      try {
-        this.chatSession = this.model.startChat({
-          history: this.chatHistory,
-          generationConfig: {
-            temperature: 0.7,
-          },
-        });
-
-        return 'Session restored';
-      } catch (error: any) {
-        throw new Error(`Failed to restore session: ${error.message}`);
-      }
-    } else {
-      // Starting new session - store codebase content for later analysis
-      this.codebaseContent = codebaseContent;
-
-      const systemPrompt = `You are a tech lead focused on software architecture and feature planning.
+    const systemPrompt = `You are a tech lead focused on software architecture and feature planning.
 
 Your job is to help me plan features for my codebase. When I describe a feature I want to build:
 
 1. First, analyze the relevant parts of the codebase to understand the current structure, technologies, and existing patterns that are relevant to the feature.
 
-2. Then:
-   - Ask precise, clarifying questions until you have full understanding of the desired behavior, edge cases, and data flows.
-   - Generate an ADR (Architecture Decision Record) detailing the chosen approach, rejected alternatives, and reasoning.
-   - Produce a step-by-step implementation plan, including file/module changes, interface updates, and any migrations or tests.
+2. Then ask ONE clarifying question at a time with numbered options for me to choose from.
 
-Important guidelines:
-- Do not assume the presence of users or business context; focus purely on product design and technical implementation.
-- Always identify and describe trade-offs in implementation choices.
-- Prefer clarity and modularity over optimization.
-- Break down large changes into shippable, isolated steps.
-- Where appropriate, propose code stubs or schemas to facilitate discussion.
-- Ask ONE clarifying question at a time, and provide numbered options when relevant.
-- Always provide your recommendation as the first option and highlight it clearly.
-- Always number your options starting from 1.
-- Make sure the first option is your recommended approach.
+CRITICAL REQUIREMENTS:
+- Ask ONLY ONE question per response
+- ALWAYS provide exactly 3-4 numbered options for me to choose from
+- Number your options starting from 1
+- Make the first option your recommended approach and mark it with ⭐ RECOMMENDED
+- Keep each response focused and concise
+- Wait for my answer before asking the next question
 
-## Response Format:
-Use only semantic markdown format to respond:
+## Response Format (MANDATORY):
 
-# [Brief section title]
+# [Brief title]
 
-[Detailed analysis and context in markdown]
+[Brief context or analysis - max 2-3 sentences]
 
-**[Clarifying question or prompt]**
+**[Single clarifying question]**
 
-1. **[First option title]** ⭐ RECOMMENDED
-   [Detailed explanation and reasoning]
+1. **[First option]** ⭐ RECOMMENDED
+   [Brief explanation]
 
-2. **[Second option title]**
-   [Detailed explanation and reasoning]
+2. **[Second option]**
+   [Brief explanation]
 
-3. **[Third option title]**
-   [Detailed explanation and reasoning]
+3. **[Third option]**
+   [Brief explanation]
 
-## Instructions:
-- Use a single # header for the response section
-- Put your question in **bold**
-- Number options starting from 1 and clearly mark the recommended option
-- Eliminate JSON entirely, focus on clarity and readability
+4. **[Fourth option]** (if needed)
+   [Brief explanation]
+
+Do NOT provide multiple questions or extensive analysis. Keep it simple and interactive.
 
 I have a codebase ready for analysis. Please confirm you're ready to help me plan features and wait for me to describe the feature I want to build.`;
 
-      try {
-        this.chatSession = this.model.startChat({
-          history: [],
-          generationConfig: {
-            temperature: 0.7,
-          },
-        });
+    try {
+      this.chatSession = this.model.startChat({
+        history: [],
+        generationConfig: {
+          temperature: 0.7,
+        },
+      });
 
-        // Add system prompt to history
-        this.chatHistory.push({
-          role: 'user',
-          parts: [{ text: systemPrompt }],
-        });
+      // Add system prompt to history
+      this.chatHistory.push({
+        role: 'user',
+        parts: [{ text: systemPrompt }],
+      });
 
-        // Get initial AI response to confirm readiness
-        const result = await this.chatSession.sendMessage(systemPrompt);
-        const response = result.response.text();
+      // Get initial AI response to confirm readiness
+      const result = await this.chatSession.sendMessage(systemPrompt);
+      const response = result.response.text();
 
-        // Add AI response to history
-        this.chatHistory.push({
-          role: 'model',
-          parts: [{ text: response }],
-        });
+      // Add AI response to history
+      this.chatHistory.push({
+        role: 'model',
+        parts: [{ text: response }],
+      });
 
-        return { isNewSession: true, analysis: response };
-      } catch (error: any) {
-        throw new Error(`Failed to analyze codebase: ${error.message}`);
-      }
+      return { isNewSession: true, analysis: response };
+    } catch (error: any) {
+      throw new Error(`Failed to analyze codebase: ${error.message}`);
     }
   }
 

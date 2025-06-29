@@ -11,7 +11,6 @@ const App = ({ options }) => {
   const [statusMessage, setStatusMessage] = useState('Starting Codeplot...');
   const [errorMessage, setErrorMessage] = useState(null);
   const [featureArchitect, setFeatureArchitect] = useState(null);
-  const [sessionInfo, setSessionInfo] = useState(null);
   const [repomixSummary, setRepomixSummary] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState('');
   const [isStreamingAnalysis, setIsStreamingAnalysis] = useState(false);
@@ -28,59 +27,17 @@ const App = ({ options }) => {
         const architect = new FeatureArchitect(options);
         setFeatureArchitect(architect);
         
-        setStatusMessage('Setting up session management...');
-        
-        // Initialize state machine and handle session selection
-        logger.debug('App: Creating state machine');
-        const stateMachine = architect.createStateMachine();
-        
-        let sessionChoice = null;
-        if (options.session) {
-          logger.debug('App: Loading specific session', { session: options.session });
-          setStatusMessage(`Loading session: ${options.session}`);
-          await stateMachine.loadSession(options.session);
-        } else {
-          setStatusMessage('Checking for existing sessions...');
-          logger.debug('App: Getting session choice');
-          sessionChoice = await architect.sessionManager.getSessionChoice();
-          
-          if (sessionChoice === 'new') {
-            logger.debug('App: Starting new session');
-            setStatusMessage('Starting new session...');
-          } else if (sessionChoice) {
-            logger.debug('App: Loading existing session', { sessionChoice });
-            setStatusMessage(`Loading session: ${sessionChoice}`);
-          }
-          
-          await stateMachine.loadSession(null, sessionChoice);
-        }
-
         setStatusMessage('Packing repository with repomix...');
         
-        // Transition to CODEBASE_PACKED state and get repomix summary
-        logger.debug('App: Transitioning to CODEBASE_PACKED state');
-        await stateMachine.transitionTo(stateMachine.states.CODEBASE_PACKED);
+        // Pack the codebase
+        logger.debug('App: Packing codebase');
+        const packResult = await architect.repoPackager.pack();
+        setRepomixSummary(packResult.summary);
         
-        // Get the repomix summary from the state machine
-        if (stateMachine.repomixSummary) {
-          logger.debug('App: Got repomix summary', { summaryLength: stateMachine.repomixSummary.length });
-          setRepomixSummary(stateMachine.repomixSummary);
-        }
-        
-        // Transition to PLANNING state
-        logger.debug('App: Transitioning to PLANNING state');
-        await stateMachine.transitionTo(stateMachine.states.PLANNING);
-        
-        const stateInfo = stateMachine.getStateInfo();
-        setSessionInfo(stateInfo);
-        
-        // Initialize AI without codebase analysis
+        // Initialize AI chat session
         try {
           logger.debug('App: Initializing AI chat session');
-          const initResult = await architect.chatSession.initialize(
-            stateMachine.codebaseContent, 
-            stateMachine.sessionData
-          );
+          const initResult = await architect.chatSession.initialize(packResult.content);
           
           if (initResult.isNewSession && initResult.analysis) {
             logger.debug('App: Got AI analysis for new session');
@@ -208,12 +165,10 @@ const App = ({ options }) => {
     );
   }
 
-  if (appState === 'planning' && featureArchitect && sessionInfo) {
+  if (appState === 'planning' && featureArchitect) {
     return (
       <ChatView
         chatSession={featureArchitect.chatSession}
-        sessionManager={featureArchitect.sessionManager}
-        sessionName={sessionInfo.sessionName}
         onComplete={handlePlanningComplete}
         onError={handleError}
         repomixSummary={repomixSummary}

@@ -4,9 +4,8 @@ import TextInput from 'ink-text-input';
 import AIResponse from './AIResponse.jsx';
 import MarkdownText from './MarkdownText.jsx';
 import { ThinkingSpinner } from './components/Spinner.jsx';
-import { AgentOrchestrator } from '../agents/AgentOrchestrator.js';
 
-const ChatView = ({ chatSession, sessionManager, sessionName, onComplete, onError, repomixSummary, aiAnalysis }) => {
+const ChatView = ({ chatSession, onComplete, onError, repomixSummary, aiAnalysis }) => {
   const { exit } = useApp();
   const [messages, setMessages] = useState([]);
   const [currentInput, setCurrentInput] = useState('');
@@ -18,8 +17,6 @@ const ChatView = ({ chatSession, sessionManager, sessionName, onComplete, onErro
   const [isInitializing, setIsInitializing] = useState(true);
   const [inputMode, setInputMode] = useState('text'); // 'text' or 'selector'
   const [lastAIResponse, setLastAIResponse] = useState('');
-  const [agentOrchestrator, setAgentOrchestrator] = useState(null);
-  const [currentResponseData, setCurrentResponseData] = useState(null);
   const scrollRef = useRef();
 
   // Helper function to start processing
@@ -34,11 +31,10 @@ const ChatView = ({ chatSession, sessionManager, sessionName, onComplete, onErro
     // Add the response as a message
     addMessage('assistant', response);
     
-    // Check if this response has options
-    const hasJsonOptions = response.match(/"options"\s*:\s*\[/) || response.match(/```(?:json)?[\s\S]*"options"/);
+    // Check if this response has numbered options
     const hasNumberedOptions = response.match(/^\s*\d+\./m);
     
-    if (hasJsonOptions || hasNumberedOptions) {
+    if (hasNumberedOptions) {
       setLastAIResponse(response);
       setInputMode('selector');
     }
@@ -65,55 +61,8 @@ const ChatView = ({ chatSession, sessionManager, sessionName, onComplete, onErro
       try {
         setIsInitializing(true);
         
-        // Initialize AgentOrchestrator with API key from environment
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-          throw new Error('GEMINI_API_KEY environment variable is required');
-        }
         
-        const orchestrator = new AgentOrchestrator(apiKey);
-        setAgentOrchestrator(orchestrator);
-        
-        // Check if session has existing data
-        if (sessionName && chatSession.featureData.adr_content) {
-          // Session already has completed ADR
-          setMessages([
-            {
-              type: 'system',
-              content: `Resuming session: ${chatSession.featureData.description || 'Unnamed Feature'}`,
-              timestamp: new Date()
-            },
-            {
-              type: 'system', 
-              content: 'This session already has a completed ADR. You can review, modify, or exit.',
-              timestamp: new Date()
-            }
-          ]);
-          setMode('completed');
-        } else if (sessionName && chatSession.featureData.description && !chatSession.featureData.adr_content) {
-          // Resuming incomplete session
-          setFeatureDescription(chatSession.featureData.description);
-          setMessages([
-            {
-              type: 'system',
-              content: `Resuming feature planning: ${chatSession.featureData.description}`,
-              timestamp: new Date()
-            },
-            {
-              type: 'system',
-              content: 'The AI will continue asking clarifying questions. Answer them to refine the feature requirements.',
-              timestamp: new Date()
-            }
-          ]);
-          
-          // Get next AI question
-          startProcessing();
-          const aiResponse = await chatSession.sendMessage(
-            `I want to continue planning this feature: ${chatSession.featureData.description}. Please ask me your next clarifying question.`
-          );
-          endProcessing(aiResponse);
-        } else {
-          // New session - include repomix summary and AI analysis
+        // New session - include repomix summary and AI analysis
           const initialMessages = [];
           
           // Add repomix summary if available
@@ -141,7 +90,6 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
           });
           
           setMessages(initialMessages);
-        }
         
         setIsInitializing(false);
       } catch (error) {
@@ -233,18 +181,7 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
       return;
     }
 
-    if (!agentOrchestrator) {
-      addMessage('system', 'Error: Agent orchestrator not initialized');
-      return;
-    }
-
     try {
-      // If there was a previous AI question, add it to history now
-      if (currentResponseData && currentResponseData.displayText) {
-        addMessage('assistant', currentResponseData.displayText);
-        setCurrentResponseData(null);
-      }
-      
       // Show processing indicator
       setIsWaitingForAI(true);
       
@@ -252,85 +189,24 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
       if (!featureDescription) {
         setFeatureDescription(input);
         
-        // Update legacy chat session for compatibility
+        // Update chat session feature data
         if (chatSession) {
           chatSession.featureData.name = chatSession.extractFeatureName(input);
           chatSession.featureData.description = input;
         }
         
-        // Generate session name if this is a new session
-        if (!sessionName && sessionManager) {
-          sessionName = sessionManager.generateSessionName(input);
-        }
-
         addMessage('system', 'Starting interactive planning session...');
-        
-        // Prepare codebase context
-        let codebaseContext = '';
-        if (chatSession && chatSession.codebaseContent) {
-          codebaseContext = chatSession.codebaseContent;
-          console.log('📦 Codebase context length:', codebaseContext.length);
-          console.log('📦 Codebase context preview:', codebaseContext.substring(0, 500) + '...');
-        } else {
-          console.log('⚠️  No codebase content found in chatSession');
-          if (chatSession) {
-            console.log('ChatSession properties:', Object.keys(chatSession));
-          }
-        }
-        
-        // Add repomix summary if available
-        if (repomixSummary) {
-          codebaseContext += `\n\nRepository Analysis:\n- Files processed: ${repomixSummary.fileCount.toLocaleString()}\n- Total lines: ${repomixSummary.totalLines.toLocaleString()}\n- Content size: ${repomixSummary.sizeKB} KB\n- Estimated tokens: ${repomixSummary.estimatedTokens.toLocaleString()}`;
-          console.log('📊 Added repomix summary to context');
-        }
-        
-        // Add AI analysis if available
-        if (aiAnalysis) {
-          codebaseContext += `\n\nInitial AI Analysis:\n${aiAnalysis}`;
-          console.log('🤖 Added AI analysis to context');
-        }
-        
-        console.log('📋 Final codebase context length:', codebaseContext.length);
-        console.log('📋 Final context preview:', codebaseContext.substring(0, 1000) + '...');
-        
-        // Start planning with AgentOrchestrator
-        const response = await agentOrchestrator.startPlanning(input, codebaseContext);
-        
-        // Clear waiting state
-        setIsWaitingForAI(false);
-        
-        if (response.type === 'planning_question') {
-          // Display the question with proper formatting
-          const questionData = response.data;
-          
-          // Don't add to chat history yet - it will be added after user responds
-          // Just set up the selector
-          setCurrentResponseData({ parsedData: questionData, displayText: buildDisplayText(questionData) });
-          setLastAIResponse(JSON.stringify(questionData));
-          setInputMode('selector');
-        }
-      } else {
-        // Handle subsequent responses
-        const response = await agentOrchestrator.respondToQuestion(input);
-        
-        // Clear waiting state
-        setIsWaitingForAI(false);
-        
-        if (response.type === 'planning_question') {
-          // Continue with next question
-          const questionData = response.data;
-          
-          // Don't add to chat history yet - it will be added after user responds
-          // Just set up the selector
-          setCurrentResponseData({ parsedData: questionData, displayText: buildDisplayText(questionData) });
-          setLastAIResponse(JSON.stringify(questionData));
-          setInputMode('selector');
-        } else if (response.type === 'phase_transition') {
-          // Ready for ADR generation
-          addMessage('system', response.message);
-          await generateADR();
-        }
       }
+      
+      // Send message to ChatSession and get response
+      const response = await chatSession.sendMessage(input);
+      
+      // Clear waiting state
+      setIsWaitingForAI(false);
+      
+      // End processing with the response
+      endProcessing(response);
+      
     } catch (error) {
       setIsWaitingForAI(false);
       addMessage('system', `Error in planning: ${error.message}`);
@@ -358,54 +234,44 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
   };
 
   const generateADR = async () => {
-    if (!agentOrchestrator) {
-      addMessage('system', 'Error: Agent orchestrator not initialized');
-      return;
-    }
-
     try {
       setMode('adr_generation');
       addMessage('system', '📝 Generating Architecture Decision Record...');
       
-      // Use AgentOrchestrator to generate ADR
-      const adrResult = await agentOrchestrator.generateADR();
-      
-      if (adrResult.type === 'adr_generated') {
-        const adr = adrResult.adr;
-        
-        // Update legacy chat session for compatibility
-        if (chatSession) {
-          chatSession.featureData.adr_content = adr.adrContent;
-          chatSession.featureData.implementation_plan = adr.implementationPlan;
-          chatSession.featureData.adr_title = adr.title;
-          chatSession.featureData.adrFilename = chatSession.generateADRFilename(adr.title || chatSession.featureData.name);
-        }
-        
-        // Display the generated ADR
-        addMessage('assistant', adr.adrContent);
-        
-        // Save final session state
-        if (sessionManager && sessionName && chatSession) {
-          try {
-            await sessionManager.saveSession(sessionName, chatSession.featureData, adrResult.conversationHistory);
-          } catch (error) {
-            addMessage('system', '⚠️  Warning: Failed to save final session data');
-          }
-        }
+      // Generate ADR prompt based on conversation history
+      const adrPrompt = `Based on our conversation about "${featureDescription}", please generate a comprehensive Architecture Decision Record (ADR) that includes:
 
-        addMessage('system', '✅ ADR generation completed!');
-        setMode('completed');
-        
-        // Call the completion handler to save ADR to file
-        if (onComplete && chatSession) {
-          try {
-            await onComplete(chatSession.featureData);
-          } catch (error) {
-            addMessage('system', `⚠️  Warning: Failed to save ADR file: ${error.message}`);
-          }
+1. Context and problem statement
+2. Decision made
+3. Consequences (positive and negative)
+4. Implementation plan with specific steps
+
+Format it as a proper ADR document with clear sections.`;
+      
+      // Send the ADR generation request
+      const adrResponse = await chatSession.sendMessage(adrPrompt);
+      
+      // Update chat session feature data
+      if (chatSession) {
+        chatSession.featureData.adr_content = adrResponse;
+        chatSession.featureData.adr_title = chatSession.extractADRTitle(adrResponse) || featureDescription;
+        chatSession.featureData.adrFilename = chatSession.generateADRFilename(chatSession.featureData.name || featureDescription);
+        chatSession.featureData.implementation_plan = chatSession.extractImplementationPlan(adrResponse);
+      }
+      
+      // Display the generated ADR
+      addMessage('assistant', adrResponse);
+      
+      addMessage('system', '✅ ADR generation completed!');
+      setMode('completed');
+      
+      // Call the completion handler to save ADR to file
+      if (onComplete && chatSession) {
+        try {
+          await onComplete(chatSession.featureData);
+        } catch (error) {
+          addMessage('system', `⚠️  Warning: Failed to save ADR file: ${error.message}`);
         }
-      } else {
-        throw new Error('Failed to generate ADR');
       }
     } catch (error) {
       addMessage('system', `Error generating ADR: ${error.message}`);
@@ -480,7 +346,7 @@ ${repomixSummary.sampleFiles.map(file => `• ${file}`).join('\n')}${repomixSumm
         <Box borderStyle="single" borderColor="yellow" marginBottom={1}>
           <AIResponse 
             content={lastAIResponse}
-            parsedData={currentResponseData}
+            parsedData={null}
             onOptionSelect={handleOptionSelect}
             onContinue={handleContinueWithText}
           />

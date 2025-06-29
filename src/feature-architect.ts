@@ -4,6 +4,7 @@ import path from 'path';
 import { RepoPackager } from './repo-packager.js';
 import { ChatSession } from './chat-session.js';
 import { ADRGenerator } from './adr-generator.js';
+import { AgentOrchestrator } from './agents/AgentOrchestrator.js';
 
 interface FeatureArchitectOptions {
   projectPath: string;
@@ -38,12 +39,14 @@ export class FeatureArchitect {
   public repoPackager: RepoPackager;
   public chatSession: ChatSession;
   public adrGenerator: ADRGenerator;
+  public agentOrchestrator: AgentOrchestrator;
 
   constructor(
     @inject('FeatureArchitectOptions') options: FeatureArchitectOptions,
     @inject(RepoPackager) repoPackager: RepoPackager,
     @inject(ChatSession) chatSession: ChatSession,
-    @inject(ADRGenerator) adrGenerator: ADRGenerator
+    @inject(ADRGenerator) adrGenerator: ADRGenerator,
+    @inject(AgentOrchestrator) agentOrchestrator: AgentOrchestrator
   ) {
     this.projectPath = options.projectPath;
     this.apiKey = options.apiKey || process.env.GEMINI_API_KEY || '';
@@ -60,6 +63,7 @@ export class FeatureArchitect {
     this.repoPackager = repoPackager;
     this.chatSession = chatSession;
     this.adrGenerator = adrGenerator;
+    this.agentOrchestrator = agentOrchestrator;
   }
 
   async completeSession(featureData: FeatureData): Promise<CompletionResult> {

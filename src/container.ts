@@ -3,6 +3,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AgentOrchestrator } from './agents/AgentOrchestrator.js';
 import { ADRGeneratorAgent } from './agents/ADRGeneratorAgent.js';
 import { PlanningAgent } from './agents/PlanningAgent.js';
+import { PRDAgent } from './agents/PRDAgent.js';
+import { PRDGeneratorAgent } from './agents/PRDGeneratorAgent.js';
 import { FeatureArchitect } from './feature-architect.js';
 import { RepoPackager } from './repo-packager.js';
 import { ChatSession } from './chat-session.js';
@@ -47,6 +49,8 @@ export function configureContainer(options: {
   container.register(ADRGenerator, ADRGenerator);
   container.register(PlanningAgent, PlanningAgent);
   container.register(ADRGeneratorAgent, ADRGeneratorAgent);
+  container.register(PRDAgent, PRDAgent);
+  container.register(PRDGeneratorAgent, PRDGeneratorAgent);
   container.register(AgentOrchestrator, AgentOrchestrator);
   container.register(FeatureArchitect, FeatureArchitect);
 }

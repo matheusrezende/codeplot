@@ -1,11 +1,15 @@
 import 'reflect-metadata';
-import { injectable, inject } from 'tsyringe';
+import { injectable, inject, container } from 'tsyringe';
 import { DynamicTool } from '@langchain/core/tools';
 import { AIMessage, BaseMessage, HumanMessage, ToolMessage } from '@langchain/core/messages';
 import { PlanningAgent } from './PlanningAgent';
 import { ADRGeneratorAgent } from './ADRGeneratorAgent';
+import { PRDAgent } from './PRDAgent';
+import { PRDGeneratorAgent } from './PRDGeneratorAgent';
 import { MCPToolManager } from '../tools/MCPToolManager.js';
-import { logger } from '../utils/logger';
+import { PRD } from '../types/prd';
+
+export type WorkflowType = 'adr' | 'prd';
 
 interface PlanningQuestionData {
   header: string;
@@ -33,9 +37,9 @@ interface PlanningResponse {
   conversationHistory: BaseMessage[];
 }
 
-interface ADRResponse {
-  type: 'adr_generated';
-  adr: ADRResult;
+interface DocumentResponse {
+  type: 'document_generated';
+  document: ADRResult | PRD;
   conversationHistory: BaseMessage[];
 }
 
@@ -44,38 +48,44 @@ interface SessionData {
   codebaseContext: string;
   conversationHistory: BaseMessage[];
   currentPhase: string;
+  workflow: WorkflowType;
   timestamp: Date;
 }
 
-type Phase = 'planning' | 'adr_generation' | 'completed';
-
+type Phase = 'planning' | 'generation' | 'completed';
 const MAX_TURNS = 10;
 
 @injectable()
 export class AgentOrchestrator {
-  private planningAgent: PlanningAgent;
-  private adrGeneratorAgent: ADRGeneratorAgent;
+  private planningAgent!: PlanningAgent | PRDAgent;
+  private generatorAgent!: ADRGeneratorAgent | PRDGeneratorAgent;
   private mcpToolManager: MCPToolManager;
   private conversationHistory: BaseMessage[] = [];
   private currentPhase: Phase = 'planning';
   private featureRequest = '';
   private codebaseContext = '';
   private mcpTools: DynamicTool[] = [];
+  private activeWorkflow: WorkflowType = 'adr';
 
-  constructor(
-    @inject(PlanningAgent) planningAgent: PlanningAgent,
-    @inject(ADRGeneratorAgent) adrGeneratorAgent: ADRGeneratorAgent,
-    @inject(MCPToolManager) mcpToolManager: MCPToolManager
-  ) {
-    this.planningAgent = planningAgent;
-    this.adrGeneratorAgent = adrGeneratorAgent;
+  constructor(@inject(MCPToolManager) mcpToolManager: MCPToolManager) {
     this.mcpToolManager = mcpToolManager;
+  }
+
+  setWorkflow(workflow: WorkflowType) {
+    this.activeWorkflow = workflow;
+    if (workflow === 'adr') {
+      this.planningAgent = container.resolve(PlanningAgent);
+      this.generatorAgent = container.resolve(ADRGeneratorAgent);
+    } else {
+      this.planningAgent = container.resolve(PRDAgent);
+      this.generatorAgent = container.resolve(PRDGeneratorAgent);
+    }
   }
 
   async startPlanning(
     featureRequest: string,
     codebaseContext: string = ''
-  ): Promise<PlanningResponse> {
+  ): Promise<PlanningResponse | { type: 'ready_for_generation' }> {
     this.featureRequest = featureRequest;
     this.codebaseContext = codebaseContext;
     this.mcpTools = await this.mcpToolManager.initializeTools();
@@ -83,23 +93,17 @@ export class AgentOrchestrator {
     const initialContent = `Feature Request: ${featureRequest}\n\nCodebase Context:\n${codebaseContext}`;
     this.conversationHistory = [new HumanMessage(initialContent)];
 
-    logger.debug('AgentOrchestrator: Starting planning', {
-      featureRequestLength: featureRequest.length,
-      codebaseContextLength: codebaseContext.length,
-      mcpToolCount: this.mcpTools.length,
-    });
-
-    return this.getNextPlanningQuestion();
+    return this.runPlanningLoop();
   }
 
   async continueConversation(
     userResponse: string
-  ): Promise<PlanningResponse | { type: 'ready_for_adr' }> {
+  ): Promise<PlanningResponse | { type: 'ready_for_generation' }> {
     this.conversationHistory.push(new HumanMessage(userResponse));
     return this.runPlanningLoop();
   }
 
-  private async runPlanningLoop(): Promise<PlanningResponse | { type: 'ready_for_adr' }> {
+  private async runPlanningLoop(): Promise<PlanningResponse | { type: 'ready_for_generation' }> {
     let turns = 0;
     while (turns < MAX_TURNS) {
       turns++;
@@ -108,8 +112,8 @@ export class AgentOrchestrator {
         this.conversationHistory
       );
       if (readinessEvaluation.readyForADR) {
-        this.currentPhase = 'adr_generation';
-        return { type: 'ready_for_adr' };
+        this.currentPhase = 'generation';
+        return { type: 'ready_for_generation' };
       }
 
       const response: AIMessage = await this.planningAgent.askQuestion(
@@ -164,30 +168,31 @@ export class AgentOrchestrator {
     };
   }
 
-  private async getNextPlanningQuestion(): Promise<PlanningResponse> {
-    const response = await this.runPlanningLoop();
-    if (response.type === 'ready_for_adr') {
-      throw new Error('Agent is ready for ADR, but another question was requested.');
-    }
-    return response;
-  }
-
-  async generateADR(): Promise<ADRResponse> {
-    if (this.currentPhase !== 'adr_generation') {
-      throw new Error('Not ready for ADR generation.');
+  async generateDocument(): Promise<DocumentResponse> {
+    if (this.currentPhase !== 'generation') {
+      throw new Error('Not ready for document generation.');
     }
 
-    const adrResult = await this.adrGeneratorAgent.generateADR(
-      this.featureRequest,
-      this.conversationHistory,
-      this.codebaseContext
-    );
+    let document: ADRResult | PRD;
+
+    if (this.activeWorkflow === 'adr') {
+      document = await (this.generatorAgent as ADRGeneratorAgent).generateADR(
+        this.featureRequest,
+        this.conversationHistory,
+        this.codebaseContext
+      );
+    } else {
+      document = await (this.generatorAgent as PRDGeneratorAgent).generatePRD(
+        this.featureRequest,
+        this.conversationHistory
+      );
+    }
 
     this.currentPhase = 'completed';
 
     return {
-      type: 'adr_generated',
-      adr: adrResult,
+      type: 'document_generated',
+      document,
       conversationHistory: this.conversationHistory,
     };
   }
@@ -198,6 +203,7 @@ export class AgentOrchestrator {
       codebaseContext: this.codebaseContext,
       conversationHistory: this.conversationHistory,
       currentPhase: this.currentPhase,
+      workflow: this.activeWorkflow,
       timestamp: new Date(),
     };
   }
@@ -207,5 +213,6 @@ export class AgentOrchestrator {
     this.codebaseContext = sessionData.codebaseContext || '';
     this.conversationHistory = sessionData.conversationHistory || [];
     this.currentPhase = (sessionData.currentPhase as Phase) || 'planning';
+    this.setWorkflow(sessionData.workflow || 'adr');
   }
 }

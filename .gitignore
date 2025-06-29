@@ -177,3 +177,7 @@ yarn-error.log
 
 # Codeplot sessions
 .codeplot/
+
+
+# ConPort
+context_portal/

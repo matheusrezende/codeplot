@@ -67,42 +67,42 @@ We will refactor the application to become a generic MCP client and integrate it
 
 ### **Implementation Plan**
 
-**Step 1: MCP Configuration Management**
+**Step 1: MCP Configuration Management** ✅
 
-1.  **Create `src/config/MCPConfigManager.ts`**:
+1.  **Create `src/config/MCPConfigManager.ts`**: ✅
     - This class will be responsible for finding, loading, and validating `mcp-config.jsonc` files.
     - It should look for `.codeplot/mcp-config.jsonc` in the current project directory.
     - (Future) It could also look in a global user directory (e.g., `~/.config/codeplot/mcp-config.jsonc`) and merge the configurations.
     - It will have a public method `loadActiveServers(): MCPSeerverConfig[]`.
-2.  **Define Types**: Create `src/types/mcp.ts` to hold the interfaces for `MCPServerConfig`, `MCPAuth`, etc.
-3.  **DI Registration**: Register `MCPConfigManager` as a singleton in `src/container.ts`.
+2.  **Define Types**: Create `src/types/mcp.ts` to hold the interfaces for `MCPServerConfig`, `MCPAuth`, etc. ✅
+3.  **DI Registration**: Register `MCPConfigManager` as a singleton in `src/container.ts`. ✅
 
-**Step 2: Generic MCP Client**
+**Step 2: Generic MCP Client** ✅
 
-1.  **Create `src/clients/MCPClient.ts`**:
+1.  **Create `src/clients/MCPClient.ts`**: ✅
     - This class will take an `MCPServerConfig` in its constructor.
     - It will have methods that map to the MCP standard, like `search(query: string): Promise<MCP_SearchResponse>` and `getContent(id: string): Promise<MCP_ContentResponse>`.
     - It will handle fetching the auth token from the environment variable specified in the config and adding the `Authorization` header.
     - It will use a library like `axios` or the native `fetch` API for HTTP requests.
     - It needs robust error handling for network issues or non-200 responses.
 
-**Step 3: AI Tool Abstraction**
+**Step 3: AI Tool Abstraction** ✅
 
-1.  **Refactor `AgentOrchestrator` to manage tools**:
+1.  **Refactor `AgentOrchestrator` to manage tools**: ✅
     - Inject `MCPConfigManager`.
     - In its initialization, it will call `mcpConfigManager.loadActiveServers()`.
     - It will loop through the server configs and create a dynamic "tool" for each one. We can use LangChain's `DynamicTool` or a similar abstraction.
     - Each tool needs a `name` (e.g., `search_work_notion`) and the `description` from the config file, which is crucial for the AI to know when to use it.
     - The tool's function will instantiate `MCPClient` with the appropriate config and call the relevant method (e.g., `search`).
 
-**Step 4: Refactor `PlanningAgent` for Tool-Use**
+**Step 4: Refactor `PlanningAgent` for Tool-Use** ✅
 
-1.  **Update `PlanningAgent.askQuestion`**:
+1.  **Update `PlanningAgent.askQuestion`**: ✅
     - The method signature will now accept an array of tools: `askQuestion(..., tools: BaseTool[])`.
     - The LangChain model invocation will be updated to bind these tools. Example: `this.model.bindTools(tools)`.
-2.  **Update Prompt**: The system prompt for the `PlanningAgent` needs to be updated to explicitly encourage it to use the provided tools to gather information before asking questions.
-3.  **Handle Tool Calls**: The agent's logic must now be a loop. After calling the model, it must check if the response is a tool call or a message to the user.
-    - If it's a tool call, the `AgentOrchestrator` will execute the tool and send the results back to the agent for another iteration.
-    - If it's a message, it gets displayed to the user as before.
+2.  **Update Prompt**: The system prompt for the `PlanningAgent` needs to be updated to explicitly encourage it to use the provided tools to gather information before asking questions. ✅
+3.  **Handle Tool Calls**: The agent's logic must now be a loop. After calling the model, it must check if the response is a tool call or a message to the user. ✅
+    - If it's a tool call, the `AgentOrchestrator` will execute the tool and send the results back to the agent for another iteration. ✅
+    - If it's a message, it gets displayed to the user as before. ✅
 
-This plan establishes a powerful, scalable framework for external integrations. What is the next priority?
+This plan establishes a powerful, scalable framework for external integrations. All implementation steps are now complete.

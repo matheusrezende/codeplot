@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp } from 'ink';
 import ChatView from './ChatView.jsx';
 import InitializationView from './InitializationView.jsx';
+import WorkflowSelector from './WorkflowSelector.jsx';
 import { logger } from '../utils/logger.js';
 
 const App = ({ featureArchitect }) => {
   const { exit } = useApp();
-  const [appState, setAppState] = useState('initializing'); // initializing, planning, completed, error
+  const [appState, setAppState] = useState('initializing'); // initializing, awaiting_workflow_selection, planning, completed, error
   const [statusMessage, setStatusMessage] = useState('Starting Codeplot...');
   const [errorMessage, setErrorMessage] = useState(null);
   const [repomixSummary, setRepomixSummary] = useState(null);
@@ -19,19 +20,19 @@ const App = ({ featureArchitect }) => {
       try {
         logger.debug('App: Starting initialization with injected FeatureArchitect');
         setStatusMessage('Initializing Feature Architect...');
-        
+
         setStatusMessage('Packing repository with repomix...');
-        
+
         // Pack the codebase
         logger.debug('App: Packing codebase');
         const packResult = await featureArchitect.repoPackager.pack();
         setRepomixSummary(packResult.summary);
-        
+
         // Initialize AI chat session
         try {
           logger.debug('App: Initializing AI chat session');
           const initResult = await featureArchitect.chatSession.initialize(packResult.content);
-          
+
           if (initResult.isNewSession && initResult.analysis) {
             logger.debug('App: Got AI analysis for new session');
             setAiAnalysis(initResult.analysis);
@@ -44,11 +45,10 @@ const App = ({ featureArchitect }) => {
             return;
           }
         }
-        
-        // Switch to chat interface
-        logger.debug('App: Initialization complete, switching to planning state');
-        setAppState('planning');
-        
+
+        // Switch to workflow selection
+        logger.debug('App: Initialization complete, switching to workflow selection state');
+        setAppState('awaiting_workflow_selection');
       } catch (error) {
         logger.errorWithStack(error, 'App initialization failed');
         if (!process.env.DEBUG) {
@@ -61,25 +61,24 @@ const App = ({ featureArchitect }) => {
     initialize();
   }, [featureArchitect]);
 
-  const handlePlanningComplete = async (featureData) => {
+  const handlePlanningComplete = async featureData => {
     try {
       logger.debug('App: Planning complete, starting session completion', { featureData });
       setAppState('completing');
       setStatusMessage('Finalizing session...');
-      
+
       // Complete the session through FeatureArchitect
       const result = await featureArchitect.completeSession(featureData);
       logger.info('App: Session completed successfully', { adrPath: result.adrPath });
-      
+
       setStatusMessage(`✅ ADR generated: ${result.adrPath}`);
       setAppState('completed');
-      
+
       // Auto-exit after a brief moment
       setTimeout(() => {
         logger.debug('App: Auto-exiting application');
         exit();
       }, 2000);
-      
     } catch (error) {
       logger.errorWithStack(error, 'Session completion failed');
       if (!process.env.DEBUG) {
@@ -89,7 +88,7 @@ const App = ({ featureArchitect }) => {
     }
   };
 
-  const handleError = (error) => {
+  const handleError = error => {
     logger.errorWithStack(error, 'App: Handled error from child component');
     if (!process.env.DEBUG) {
       setErrorMessage('An error occurred. Run with --debug for details.');
@@ -101,7 +100,9 @@ const App = ({ featureArchitect }) => {
     return (
       <Box flexDirection="column" padding={1}>
         <Box borderStyle="single" borderColor="red" padding={1}>
-          <Text color="red" bold>❌ Error</Text>
+          <Text color="red" bold>
+            ❌ Error
+          </Text>
         </Box>
         <Box padding={1}>
           <Text color="red">{errorMessage}</Text>
@@ -118,7 +119,7 @@ const App = ({ featureArchitect }) => {
 
   if (appState === 'initializing') {
     return (
-      <InitializationView 
+      <InitializationView
         statusMessage={statusMessage}
         repomixSummary={repomixSummary}
         aiAnalysis={aiAnalysis}
@@ -132,7 +133,9 @@ const App = ({ featureArchitect }) => {
     return (
       <Box flexDirection="column" padding={1}>
         <Box borderStyle="single" padding={1}>
-          <Text color="blue" bold>📊 Codeplot</Text>
+          <Text color="blue" bold>
+            📊 Codeplot
+          </Text>
           <Text color="gray"> - AI-powered feature planning</Text>
         </Box>
         <Box padding={1}>
@@ -146,7 +149,9 @@ const App = ({ featureArchitect }) => {
     return (
       <Box flexDirection="column" padding={1}>
         <Box borderStyle="single" borderColor="green" padding={1}>
-          <Text color="green" bold>🎉 Feature Planning Completed!</Text>
+          <Text color="green" bold>
+            🎉 Feature Planning Completed!
+          </Text>
         </Box>
         <Box padding={1}>
           <Text color="green">{statusMessage}</Text>
@@ -155,6 +160,17 @@ const App = ({ featureArchitect }) => {
           <Text color="gray">Exiting...</Text>
         </Box>
       </Box>
+    );
+  }
+
+  if (appState === 'awaiting_workflow_selection') {
+    return (
+      <WorkflowSelector
+        onSelect={item => {
+          featureArchitect.agentOrchestrator.setWorkflow(item.value);
+          setAppState('planning');
+        }}
+      />
     );
   }
 

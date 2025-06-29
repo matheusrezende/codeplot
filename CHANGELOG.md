@@ -1,3 +1,12 @@
+# [3.1.0](https://github.com/matheusrezende/codeplot/compare/v3.0.0...v3.1.0) (2025-06-29)
+
+
+### Features
+
+* **mcp:** add core modules for MCP integration ([4711640](https://github.com/matheusrezende/codeplot/commit/47116409f5fc414a827f98dfe602474ff16d9bb9))
+* **prd:** add PRDAgent and PRDGeneratorAgent ([8dbf33d](https://github.com/matheusrezende/codeplot/commit/8dbf33df8db87ac8c5b33ee233423dd1f6857681))
+* **ui:** add workflow selection screen ([045d25c](https://github.com/matheusrezende/codeplot/commit/045d25c1fdb3f1786ea47956234360cef9c7206b))
+
 # [3.0.0](https://github.com/matheusrezende/codeplot/compare/v2.0.0...v3.0.0) (2025-06-29)
 
 

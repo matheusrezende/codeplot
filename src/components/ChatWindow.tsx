@@ -6,6 +6,8 @@ import BigText from 'ink-big-text';
 import { IAgentService } from '../services/agent/agent.interface';
 import { OptionSelector } from './OptionSelector';
 import { ParsedOption } from '../utils/response-parser';
+import { LoadingIndicator } from './LoadingIndicator';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 interface ChatWindowProps {
   agentService: IAgentService;
@@ -24,7 +26,7 @@ const senderDisplay = {
   thought: { emoji: '🤔', color: '#FFA500', name: 'Thinking' },
 };
 
-export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
+export function ChatWindow({ agentService, onExit }: ChatWindowProps): React.ReactElement {
   const { exit } = useApp();
   const [history, setHistory] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -48,26 +50,23 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
   }, []);
 
   const [optionsQuestion, setOptionsQuestion] = useState('');
-
-  const processStream = async (stream: AsyncGenerator<{ type: string; content: string }>) => {
+  const processStream = async (
+    stream: AsyncGenerator<{ type: string; content: string }>
+  ): Promise<void> => {
     let currentToolCall = '';
-    let isFirstAgentChunk = true;
 
     for await (const chunk of stream) {
       if (chunk.type === 'thinking') {
         setStatusText('Thinking...');
       } else if (chunk.type === 'tool_call') {
         currentToolCall = chunk.content;
-        setStatusText(`Thinking...\n  └ ${currentToolCall}`);
+        setStatusText(`Using tool: ${currentToolCall}...`);
+      } else if (chunk.type === 'tool_end') {
+        setStatusText('Thinking...');
       } else if (chunk.type === 'agent') {
         setStatusText('');
         currentToolCall = '';
         setIsLoading(true);
-
-        if (isFirstAgentChunk) {
-          setHistory(prev => [...prev, { sender: 'agent', content: '' }]);
-          isFirstAgentChunk = false;
-        }
 
         const words = chunk.content.split(' ');
         for (const word of words) {
@@ -76,12 +75,9 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
             const lastMessage = newHistory[newHistory.length - 1];
 
             if (lastMessage && lastMessage.sender === 'agent') {
-              const currentContent = lastMessage.content;
-              const newContent = currentContent + (currentContent ? ' ' : '') + word;
-              newHistory[newHistory.length - 1] = {
-                ...lastMessage,
-                content: newContent,
-              };
+              lastMessage.content += (lastMessage.content ? ' ' : '') + word;
+            } else {
+              newHistory.push({ sender: 'agent', content: word });
             }
             return newHistory;
           });
@@ -95,7 +91,6 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
         return;
       } else if (chunk.type === 'user_choice_required') {
         const { question, options } = JSON.parse(chunk.content);
-        setHistory(prev => [...prev, { sender: 'agent', content: question }]);
         const parsedOptions: ParsedOption[] = options.map((opt: any, index: number) => ({
           ...opt,
           number: index + 1,
@@ -115,7 +110,7 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
 
   const [isFirstMessage, setIsFirstMessage] = useState(true);
 
-  const handleSumbit = async () => {
+  const handleSumbit = async (): Promise<void> => {
     if (!input) return;
     if (input.toLowerCase() === 'exit') {
       onExit();
@@ -137,11 +132,13 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
     setShowOptions(false);
     setStatusText('Sending request...');
 
-    const stream = agentService.stream(input, threadId);
-    await processStream(stream);
+    setTimeout(async () => {
+      const stream = agentService.stream(input, threadId);
+      await processStream(stream);
+    }, 0);
   };
 
-  const handleOptionSelect = async (option: ParsedOption) => {
+  const handleOptionSelect = async (option: ParsedOption): Promise<void> => {
     const optionText = option.title;
     setShowOptions(false);
     setOptionsQuestion('');
@@ -150,15 +147,17 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
     setHistory(prev => [...prev, userMessage]);
     setIsLoading(true);
 
-    const stream = agentService.stream(optionText, threadId);
-    await processStream(stream);
+    setTimeout(async () => {
+      const stream = agentService.stream(optionText, threadId);
+      await processStream(stream);
+    }, 0);
   };
 
-  const handleOptionCancel = () => {
+  const handleOptionCancel = (): void => {
     setShowOptions(false);
   };
 
-  const handleHumanInputSubmit = async () => {
+  const handleHumanInputSubmit = async (): Promise<void> => {
     if (!humanInput) return;
 
     const userMessage: Message = { sender: 'user', content: humanInput };
@@ -167,9 +166,24 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
     setIsLoading(true);
     setIsWaitingForHuman(false);
 
-    const stream = agentService.stream(humanInput, threadId);
-    await processStream(stream);
+    setTimeout(async () => {
+      const stream = agentService.stream(humanInput, threadId);
+      await processStream(stream);
+    }, 0);
   };
+
+  const groupedHistory = history.reduce<Array<{ sender: Message['sender']; messages: Message[] }>>(
+    (acc, message) => {
+      const lastGroup = acc[acc.length - 1];
+      if (lastGroup && lastGroup.sender === message.sender) {
+        lastGroup.messages.push(message);
+      } else {
+        acc.push({ sender: message.sender, messages: [message] });
+      }
+      return acc;
+    },
+    []
+  );
 
   return (
     <Box flexDirection="column" flexGrow={1} padding={1}>
@@ -177,21 +191,19 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
         <BigText text="CodePlot" align="center" font="block" />
       </Gradient>
       <Box flexDirection="column" flexGrow={1} borderStyle="round" padding={1}>
-        {history.map((message, index) => (
-          <Box key={index} flexDirection="column" marginBottom={1}>
-            <Text bold color={senderDisplay[message.sender].color}>
-              {senderDisplay[message.sender].emoji} {senderDisplay[message.sender].name}
+        {groupedHistory.map((group, groupIndex) => (
+          <Box key={groupIndex} flexDirection="column" marginBottom={1}>
+            <Text bold color={senderDisplay[group.sender].color}>
+              {senderDisplay[group.sender].emoji} {senderDisplay[group.sender].name}
             </Text>
-            <Box marginLeft={3}>
-              <Text>{message.content}</Text>
-            </Box>
+            {group.messages.map((message, messageIndex) => (
+              <Box key={messageIndex} marginLeft={3}>
+                <MarkdownRenderer content={message.content} />
+              </Box>
+            ))}
           </Box>
         ))}
-        {isLoading && statusText && (
-          <Box marginLeft={3} flexDirection="column">
-            <Text color="gray">{statusText}</Text>
-          </Box>
-        )}
+        {isLoading && <LoadingIndicator text={statusText} />}
       </Box>
 
       {isWaitingForHuman ? (

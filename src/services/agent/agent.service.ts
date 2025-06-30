@@ -1,17 +1,54 @@
 import { inject, singleton } from 'tsyringe';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { AgentExecutor, createToolCallingAgent } from 'langchain/agents';
-import { ChatPromptTemplate } from '@langchain/core/prompts';
-import { DynamicTool } from 'langchain/tools';
+import { DynamicStructuredTool } from 'langchain/tools';
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { StateGraph, END, MemorySaver } from '@langchain/langgraph';
+import { ToolNode } from '@langchain/langgraph/prebuilt';
+
 import { IAgentService } from './agent.interface';
 import type { ILoggerService } from '../logger/logger.interface';
 import type { IMcpService } from '../mcp/mcp.interface';
 import { McpTool } from '../../common/mcp-tool';
 
+interface AgentState {
+  messages: BaseMessage[];
+}
+
+const DEV_AGENT_PROMPT = `
+You are an expert senior software architect. Your goal is to help the user create a new feature by producing an Architecture Decision Record (ADR) and an implementation plan.
+
+**Your Process:**
+You must follow these steps in order:
+1.  **Analyze Codebase:** On the user's first message, you MUST call the 'pack_codebase' tool with the current working directory to get context.
+2.  **Gather & Clarify:** Understand the user's high-level goal. Ask clarifying questions until the goal is clear.
+3.  **Validate:** Cross-reference the user's request with the provided codebase context to identify conflicts or integration points.
+4.  **Propose Solutions:** Guide the user to a final architecture.
+
+**Interaction Rules:**
+- Ask ONLY ONE question at a time.
+- When you need the user to make a decision, you MUST call the \`requestUserChoice\` tool. Provide a clear question and at least two distinct options. You MUST set \`isRecommended\` to true for one of the options.
+- Wait for the user's response before proceeding.
+`;
+
+const PM_AGENT_PROMPT = `
+You are an expert product manager. Your goal is to help the user define a new feature by producing a Product Requirements Document (PRD).
+
+**Your Process:**
+You must follow these steps:
+1.  **Analyze Codebase:** On the user's first message, you MUST call the 'pack_codebase' tool with the current working directory to get context.
+2.  **Define Problem:** Understand the user problem this feature solves.
+3.  **Define Goals:** Clarify the success metrics and goals.
+4.  **Define Requirements:** Detail the user stories and functional requirements.
+
+**Interaction Rules:**
+- Ask ONLY ONE question at a time.
+- When you need the user to make a decision, you MUST call the \`requestUserChoice\` tool. Provide a clear question and at least two distinct options. You MUST set \`isRecommended\` to true for one of the options.
+- Wait for the user's response before proceeding.
+`;
+
 @singleton()
 export class AgentService implements IAgentService {
-  private agentExecutor: AgentExecutor | undefined;
-  private lastOutputId: string | undefined;
+  private runnable: any;
 
   constructor(
     @inject('ILoggerService') private readonly logger: ILoggerService,
@@ -30,33 +67,14 @@ export class AgentService implements IAgentService {
 
     const dynamicTools = tools.map(
       tool =>
-        new DynamicTool({
+        new DynamicStructuredTool({
           name: tool.toolName,
           description: tool.description!,
-          func: async (input: string) => {
+          schema: tool.inputSchema as any,
+          func: async (args: any) => {
             try {
-              this.logger.debug(`Raw input for ${tool.toolName}:`, input);
-
-              // Try to parse the input as JSON arguments first
-              let args: any;
-              try {
-                args = JSON.parse(input);
-                this.logger.debug(`Parsed JSON args for ${tool.toolName}:`, args);
-              } catch {
-                // If not JSON, the input might be a natural language string
-                // Let the MCP service handle the parsing
-                this.logger.debug(`Using raw input for ${tool.toolName}:`, input);
-                args = input;
-              }
-
+              this.logger.debug(`Calling tool ${tool.toolName} with args:`, args);
               const result = await this.mcpService.callTool(tool.toolName, args);
-
-              // Track output IDs for tools that generate them
-              if (result && typeof result === 'object' && 'outputId' in result) {
-                this.lastOutputId = (result as any).outputId;
-                this.logger.debug(`Tracked output ID: ${this.lastOutputId}`);
-              }
-
               return JSON.stringify(result);
             } catch (error) {
               this.logger.error(`Error calling tool ${tool.toolName}:`, error);
@@ -66,198 +84,187 @@ export class AgentService implements IAgentService {
         })
     );
 
-    const promptTemplate = this.getPromptTemplate(agentType, dynamicTools);
-
-    this.logger.debug('\nPROMPT TEMPLATE ', promptTemplate);
-    const agent = await createToolCallingAgent({
-      llm: model,
-      tools: dynamicTools,
-      prompt: promptTemplate,
+    const humanTool = new DynamicStructuredTool({
+      name: 'ask_human',
+      description:
+        'Asks the human for input. Use this when you need clarification or feedback before proceeding.',
+      schema: {
+        type: 'object',
+        properties: {
+          question: {
+            type: 'string',
+            description: 'The question to ask the human.',
+          },
+        },
+        required: ['question'],
+      } as any,
+      func: async () => 'Pausing for human input.',
     });
 
-    this.agentExecutor = new AgentExecutor({
-      agent,
-      tools: dynamicTools,
-      verbose: false,
+    const requestUserChoiceTool = new DynamicStructuredTool({
+      name: 'requestUserChoice',
+      description:
+        'Asks the user to make a choice from a set of options. Use this when you need user input to proceed.',
+      schema: {
+        type: 'object',
+        properties: {
+          question: {
+            type: 'string',
+            description: 'The question to ask the user.',
+          },
+          options: {
+            type: 'array',
+            description: 'An array of options for the user to choose from.',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: 'The short title for the option.' },
+                description: {
+                  type: 'string',
+                  description: 'A detailed description of the option.',
+                },
+                isRecommended: {
+                  type: 'boolean',
+                  description: 'Whether this option is recommended.',
+                },
+              },
+              required: ['title', 'description'],
+            },
+          },
+        },
+        required: ['question', 'options'],
+      } as any,
+      func: async () => 'Pausing for user choice.',
     });
 
+    const allTools: DynamicStructuredTool[] = [...dynamicTools, humanTool, requestUserChoiceTool];
+    const modelWithTools = model.bindTools(allTools);
+    const toolNode = new ToolNode<AgentState>(allTools);
+    const memory = new MemorySaver();
+
+    const systemPrompt = agentType === 'dev' ? DEV_AGENT_PROMPT : PM_AGENT_PROMPT;
+
+    const systemMessage = new SystemMessage(systemPrompt);
+
+    const graph = new StateGraph<AgentState>({
+      channels: {
+        messages: {
+          value: (x: BaseMessage[], y: BaseMessage[]) => x.concat(y),
+          default: () => [systemMessage],
+        },
+      },
+    })
+      .addNode('agent', async state => {
+        const response = await modelWithTools.invoke(state.messages);
+        return { messages: [response] };
+      })
+      .addNode('tools', toolNode)
+      .addNode('human_in_the_loop', async () => {
+        return {};
+      })
+      .setEntryPoint('agent');
+
+    graph.addConditionalEdges('agent', state => {
+      const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
+      if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+        if (
+          lastMessage.tool_calls.some(
+            tc => tc.name === 'ask_human' || tc.name === 'requestUserChoice'
+          )
+        ) {
+          return 'human_in_the_loop';
+        }
+        return 'tools';
+      }
+      return END;
+    });
+    graph.addEdge('tools', 'agent');
+    graph.addEdge('human_in_the_loop', 'agent');
+
+    this.runnable = graph.compile({ checkpointer: memory });
     this.logger.info('Agent initialized successfully.');
   }
 
-  public async *stream(input: string): AsyncGenerator<{ type: string; content: string }> {
-    if (!this.agentExecutor) {
+  public async *stream(
+    input: string,
+    threadId: string
+  ): AsyncGenerator<{ type: string; content: string }> {
+    if (!this.runnable) {
       throw new Error('Agent not initialized. Call initialize() first.');
     }
 
     this.logger.debug(`Starting stream for input: ${input}`);
 
-    try {
-      const eventStream = this.agentExecutor.streamEvents({ input }, { version: 'v1' });
-      let hasYieldedContent = false;
+    const initialState: AgentState = {
+      messages: [new HumanMessage(input)],
+    };
 
-      for await (const event of eventStream) {
-        this.logger.debug(`Received event: ${event.event}`);
+    const stream = await this.runnable.stream(initialState, {
+      configurable: { thread_id: threadId },
+    });
 
-        if (event.event === 'on_chat_model_stream') {
-          const chunk = event.data.chunk;
-          if (typeof chunk.content === 'string') {
-            hasYieldedContent = true;
-            yield { type: 'agent', content: chunk.content };
-          }
-        } else if (event.event === 'on_llm_stream') {
-          // Alternative event type that might be used
-          const chunk = event.data.chunk;
-          if (typeof chunk.text === 'string') {
-            hasYieldedContent = true;
-            yield { type: 'agent', content: chunk.text };
-          }
-        }
+    let mostRecentStateWithMessages: AgentState | null = null;
+
+    for await (const step of stream) {
+      const stepName = Object.keys(step)[0];
+      if (stepName === '__end__') continue;
+
+      const stepState = Object.values(step)[0] as AgentState;
+      this.logger.debug(`Executing step: ${stepName}`);
+
+      if (stepState.messages && Array.isArray(stepState.messages)) {
+        mostRecentStateWithMessages = stepState;
       }
 
-      // If no content was streamed, try a fallback approach
-      if (!hasYieldedContent) {
-        this.logger.warn('No content was streamed, attempting fallback approach');
-        const result = await this.agentExecutor.invoke({ input });
-        if (result.output) {
-          yield { type: 'agent', content: result.output };
+      const stateToUse = mostRecentStateWithMessages;
+
+      if (stepName === 'agent') {
+        const lastMessage = stepState.messages[stepState.messages.length - 1] as AIMessage;
+        if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
+          yield { type: 'thinking', content: 'Thinking...' };
+          for (const toolCall of lastMessage.tool_calls) {
+            yield {
+              type: 'tool_call',
+              content: `Calling: ${toolCall.name}`,
+            };
+          }
         }
-      }
-    } catch (error) {
-      this.logger.error('Error during streaming:', error);
-      // Fallback to non-streaming approach
-      try {
-        this.logger.info('Attempting fallback to non-streaming approach');
-        const result = await this.agentExecutor.invoke({ input });
-        if (result.output) {
-          yield { type: 'agent', content: result.output };
-        } else {
-          yield {
-            type: 'agent',
-            content:
-              'I apologize, but I encountered an error processing your request. Please try again.',
-          };
+        if (lastMessage.content && typeof lastMessage.content === 'string') {
+          yield { type: 'agent', content: lastMessage.content };
         }
-      } catch (fallbackError) {
-        this.logger.error('Fallback approach also failed:', fallbackError);
-        yield {
-          type: 'agent',
-          content: `Error: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error occurred'}`,
-        };
+      } else if (stepName === 'human_in_the_loop') {
+        if (!stateToUse) {
+          this.logger.error('Entered human_in_the_loop without a preceding agent state.');
+          return;
+        }
+        const lastMessage = stateToUse.messages[stateToUse.messages.length - 1] as AIMessage;
+
+        const userChoiceToolCall = lastMessage.tool_calls?.find(
+          tc => tc.name === 'requestUserChoice'
+        );
+        if (userChoiceToolCall?.args) {
+          yield { type: 'user_choice_required', content: JSON.stringify(userChoiceToolCall.args) };
+          return;
+        }
+
+        const humanQueryToolCall = lastMessage.tool_calls?.find(tc => tc.name === 'ask_human');
+        if (humanQueryToolCall?.args) {
+          const question = humanQueryToolCall.args.question;
+          yield { type: 'human_input_required', content: question };
+          return;
+        }
+      } else if (stepName === 'tools') {
+        if (!stateToUse) {
+          this.logger.error('In tools node, but no state with messages is available.');
+          return;
+        }
+        const lastMessage = stateToUse.messages[stateToUse.messages.length - 1];
+        if (Array.isArray(lastMessage.content)) {
+          for (const toolOutput of lastMessage.content) {
+            yield { type: 'tool', content: JSON.stringify(toolOutput, null, 2) };
+          }
+        }
       }
     }
-  }
-
-  private getPromptTemplate(agentType: 'dev' | 'pm', tools: DynamicTool[]): ChatPromptTemplate {
-    const currentDirectory = process.cwd();
-    const toolsDescription = tools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n');
-
-    const developerPrompt = `You are a Senior Software Architect focused on FEATURE PLANNING ONLY.
-
-Your SOLE responsibility is to ask clarifying questions to understand a feature request in complete detail. You must NEVER generate ADRs, implementation plans, or code suggestions.
-
-CRITICAL TOOL USAGE INSTRUCTIONS:
-1. ALL tool arguments MUST be provided as valid JSON objects, never as natural language
-2. Before analyzing any user query, MUST first use pack_codebase tool to analyze the current codebase
-3. Always read tool descriptions carefully for required parameters and provide all required fields
-4. When using grep_repomix_output, use the outputId from the previous pack_codebase result
-
-## Your Process:
-1. First call pack_codebase with the directory parameter set to the current working directory
-2. Use the returned outputId for any follow-up grep_repomix_output calls if needed
-3. Analyze the feature request and codebase context
-4. Ask ONE focused clarifying question at a time
-5. Continue until you have complete understanding of:
-   - Exact feature behavior and requirements
-   - User interactions and edge cases
-   - Data flows and business rules
-   - Integration points with existing code
-   - Performance and security considerations
-
-## Response Format:
-You MUST respond using this semantic markdown format:
-
-# [Brief section title]
-
-[Your analysis and context in markdown format]
-
-**[Your clarifying question]**
-
-1. **[First option title]** ⭐ RECOMMENDED
-   [Detailed explanation of this option]
-
-2. **[Second option title]**
-   [Detailed explanation of this option]
-
-3. **[Third option title]**
-   [Detailed explanation of this option]
-
-## Important formatting rules:
-- Use exactly one # header at the start
-- Put your question in **bold** before the options
-- Number options starting from 1
-- Mark your recommended option with ⭐ RECOMMENDED
-- Keep option titles concise but descriptive
-- Provide detailed explanations under each option
-
-## Critical Rules:
-- NEVER generate implementation plans or code
-- NEVER create ADRs or architectural decisions
-- Focus only on understanding requirements completely
-- Ask about edge cases, error handling, performance needs
-- Explore integration with existing systems
-- Consider user experience and business rules
-
-## When NOT Ready for ADR:
-- Missing user interaction details
-- Unclear data requirements
-- Unknown integration points
-- Undefined error handling
-- Missing performance requirements
-- Unclear business rules
-
-## When Ready for ADR:
-Only when you have complete understanding of:
-✓ Exact feature behavior
-✓ All user interactions
-✓ Complete data requirements
-✓ Integration points identified
-✓ Error handling defined
-✓ Performance requirements clear
-✓ Security considerations addressed
-
-TOOL ARGUMENT EXAMPLES (use actual values, not these templates):
-- For pack_codebase: provide directory as absolute path
-- For grep_repomix_output: provide outputId from previous call and pattern to search
-- For file_system_read_directory: provide path as absolute path
-
-REMEMBER: Tool arguments must be JSON objects with actual values, not template strings.
-
-IMPORTANT: You are currently working in the directory: ${currentDirectory}
-
-Available tools: 
-${toolsDescription}`;
-
-    const pmPrompt = `You are a product manager. Your task is to create detailed Product Requirements Documents (PRDs). 
-
-IMPORTANT: You are currently working in the directory: ${currentDirectory}
-
-CRITICAL TOOL USAGE INSTRUCTIONS:
-1. ALL tool arguments MUST be provided as valid JSON objects, never as natural language
-2. Before answering any user query, MUST first use pack_codebase tool to analyze the current codebase
-3. Always read tool descriptions carefully for required parameters and provide all required fields
-4. When using grep_repomix_output, use the outputId from the previous pack_codebase result
-
-
-
-
-REMEMBER: Tool arguments must be JSON objects with actual values, not template strings.`;
-
-    const systemMessage = agentType === 'dev' ? developerPrompt : pmPrompt;
-
-    return ChatPromptTemplate.fromMessages([
-      ['system', systemMessage],
-      ['human', '{input}'],
-      ['placeholder', '{agent_scratchpad}'],
-    ]);
   }
 }

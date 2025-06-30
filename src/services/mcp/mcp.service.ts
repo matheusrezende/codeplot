@@ -62,23 +62,9 @@ export class McpService implements IMcpService {
     }
 
     try {
-      // Log the tool call details for debugging
       this.logger.debug(`Calling tool ${toolName} with args:`, args);
 
-      // Ensure args is a proper object
-      let toolArgs: Record<string, unknown> = {};
-      if (typeof args === 'string') {
-        try {
-          toolArgs = JSON.parse(args);
-        } catch {
-          // Try to parse natural language patterns for common cases
-          toolArgs = this.parseNaturalLanguageArgs(args, toolName);
-        }
-      } else if (args && typeof args === 'object') {
-        toolArgs = args as Record<string, unknown>;
-      }
-
-      this.logger.debug(`Processed tool args:`, toolArgs);
+      const toolArgs = args as Record<string, unknown>;
 
       const result = await client.callTool({
         name: toolName,
@@ -88,7 +74,7 @@ export class McpService implements IMcpService {
     } catch (error) {
       this.logger.error(`Error calling tool ${toolName} with args ${JSON.stringify(args)}:`, error);
       if (error && typeof error === 'object' && 'message' in error) {
-        this.logger.error(`Error details: ${(error as any).message}`);
+        this.logger.error(`Error details: ${error.message}`);
       }
       throw error;
     }
@@ -152,86 +138,5 @@ export class McpService implements IMcpService {
     } catch (error) {
       this.logger.error(`Error discovering tools from ${serverName}:`, error);
     }
-  }
-
-  private parseNaturalLanguageArgs(argsString: string, toolName: string): Record<string, unknown> {
-    this.logger.debug(`Parsing natural language args for ${toolName}: "${argsString}"`);
-
-    // Handle common patterns for specific tools
-    if (toolName === 'pack_codebase') {
-      // Look for path/directory patterns
-      const pathMatch = argsString.match(/(?:path|directory):\s*"([^"]+)"/);
-      if (pathMatch) {
-        return { directory: pathMatch[1] };
-      }
-      // If it's just a path without quotes
-      const directPathMatch = argsString.match(/(?:path|directory):\s*([^\s,]+)/);
-      if (directPathMatch) {
-        return { directory: directPathMatch[1] };
-      }
-      // If it's just a plain directory path
-      if (argsString.startsWith('/') || argsString.includes('Users')) {
-        return { directory: argsString.trim() };
-      }
-      // Default to current working directory if no path specified
-      return { directory: process.cwd() };
-    }
-
-    if (toolName === 'grep_repomix_output') {
-      // Try to extract outputId and pattern from natural language
-      const outputIdMatch = argsString.match(/(?:outputId|output):\s*"([^"]+)"/);
-      const patternMatch = argsString.match(/(?:pattern|search):\s*"([^"]+)"/);
-
-      const result: Record<string, unknown> = {};
-      if (outputIdMatch) result.outputId = outputIdMatch[1];
-      if (patternMatch) result.pattern = patternMatch[1];
-
-      // If we have some parameters but not all, return what we have
-      if (Object.keys(result).length > 0) {
-        return result;
-      }
-
-      // If it looks like a search pattern without explicit structure
-      if (argsString && !argsString.includes(':')) {
-        return { pattern: argsString.trim() };
-      }
-    }
-
-    if (toolName === 'file_system_read_directory' || toolName === 'file_system_read_file') {
-      // Look for path patterns
-      const pathMatch = argsString.match(/path:\s*"([^"]+)"/);
-      if (pathMatch) {
-        return { path: pathMatch[1] };
-      }
-      // If it's just a path without quotes
-      const directPathMatch = argsString.match(/path:\s*([^\s,]+)/);
-      if (directPathMatch) {
-        return { path: directPathMatch[1] };
-      }
-      // If it's just a plain path
-      if (argsString.startsWith('/') || argsString.includes('Users')) {
-        return { path: argsString.trim() };
-      }
-      // Default to current working directory
-      return { path: process.cwd() };
-    }
-
-    // Generic parameter extraction for key:value patterns
-    const genericMatch = argsString.match(/(\w+):\s*"([^"]+)"/g);
-    if (genericMatch) {
-      const result: Record<string, unknown> = {};
-      genericMatch.forEach(match => {
-        const [, key, value] = match.match(/(\w+):\s*"([^"]+)"/) || [];
-        if (key && value) {
-          result[key] = value;
-        }
-      });
-      if (Object.keys(result).length > 0) {
-        return result;
-      }
-    }
-
-    // Fallback: treat as input parameter
-    return { input: argsString };
   }
 }

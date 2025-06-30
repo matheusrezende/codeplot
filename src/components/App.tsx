@@ -30,7 +30,7 @@ export function App({ logger, mcpService, agentService }: AppProps) {
           logger.info('Agent initialized successfully.');
           setAppState('chatting');
         } catch (error) {
-          logger.error('Failed to initialize agent:', error);
+          logger.error(`Failed to initialize agent: ${error}`, error);
           setAppState('error');
         }
       };

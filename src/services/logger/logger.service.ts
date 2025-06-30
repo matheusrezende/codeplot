@@ -10,10 +10,15 @@ export class LoggerService implements ILoggerService {
   constructor() {
     const isDebug = process.argv.includes('--debug');
 
-    const consoleTransport = new winston.transports.Console({
-      level: isDebug ? 'debug' : 'info',
-      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-    });
+    const consoleTransport = isDebug
+      ? new winston.transports.Console({
+          level: 'debug',
+          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+        })
+      : new winston.transports.Console({
+          level: 'warn',
+          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+        });
 
     const fileTransport = new winston.transports.DailyRotateFile({
       level: 'debug',

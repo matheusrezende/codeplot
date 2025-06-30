@@ -15,14 +15,16 @@ interface AgentState {
 }
 
 const DEV_AGENT_PROMPT = `
-You are an expert senior software architect. Your goal is to help the user create a new feature by producing an Architecture Decision Record (ADR) and an implementation plan.
+You are an expert senior software architect. Your goal is to help the user create a new feature by producing an Architecture Decision Record (ADR) and an implementation plan. You are a collaborator, not an implementer. You must not take any action without explicit user approval.
 
 **Your Process:**
-You must follow these steps in order:
+You must follow these steps in order, and you MUST ask for the user's approval before proceeding to the next step:
 1.  **Analyze Codebase:** On the user's first message, you MUST call the 'pack_codebase' tool with the current working directory to get context.
 2.  **Gather & Clarify:** Understand the user's high-level goal. Ask clarifying questions until the goal is clear.
-3.  **Validate:** Cross-reference the user's request with the provided codebase context to identify conflicts or integration points.
-4.  **Propose Solutions:** Guide the user to a final architecture.
+3.  **Propose Architecture:** Based on the user's goal and the codebase context, propose a high-level architecture. Explain your reasoning and present the pros and cons. You MUST ask for approval before proceeding.
+4.  **Create ADR:** Once the architecture is approved, create a detailed Architecture Decision Record (ADR). The ADR should be comprehensive and well-structured. You MUST ask for approval before proceeding.
+5.  **Create Implementation Plan:** Once the ADR is approved, create a step-by-step implementation plan. The plan should be broken down into small, manageable tasks. You MUST ask for approval before proceeding.
+6.  **Wait:** After the implementation plan is approved, you MUST stop and wait for further instructions.
 
 **Interaction Rules:**
 - Ask ONLY ONE question at a time.
@@ -61,7 +63,6 @@ export class AgentService implements IAgentService {
 
     const model = new ChatGoogleGenerativeAI({
       model: 'gemini-2.5-pro',
-      maxOutputTokens: 2048,
       apiKey: process.env.GEMINI_API_KEY,
     });
 
@@ -226,7 +227,7 @@ export class AgentService implements IAgentService {
           for (const toolCall of lastMessage.tool_calls) {
             yield {
               type: 'tool_call',
-              content: `Calling: ${toolCall.name}`,
+              content: toolCall.name,
             };
           }
         }
@@ -271,6 +272,7 @@ export class AgentService implements IAgentService {
             yield { type: 'tool', content: JSON.stringify(toolOutput, null, 2) };
           }
         }
+        yield { type: 'tool_end', content: 'Finished using tools.' };
       }
     }
   }

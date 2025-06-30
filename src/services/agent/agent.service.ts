@@ -98,7 +98,7 @@ export class AgentService implements IAgentService {
         },
         required: ['question'],
       } as any,
-      func: async () => 'Pausing for human input.',
+      func: async (): Promise<string> => 'Pausing for human input.',
     });
 
     const requestUserChoiceTool = new DynamicStructuredTool({
@@ -134,7 +134,7 @@ export class AgentService implements IAgentService {
         },
         required: ['question', 'options'],
       } as any,
-      func: async () => 'Pausing for user choice.',
+      func: async (): Promise<string> => 'Pausing for user choice.',
     });
 
     const allTools: DynamicStructuredTool[] = [...dynamicTools, humanTool, requestUserChoiceTool];
@@ -220,6 +220,7 @@ export class AgentService implements IAgentService {
 
       if (stepName === 'agent') {
         const lastMessage = stepState.messages[stepState.messages.length - 1] as AIMessage;
+        this.logger.debug('Agent step lastMessage:', lastMessage);
         if (lastMessage.tool_calls && lastMessage.tool_calls.length > 0) {
           yield { type: 'thinking', content: 'Thinking...' };
           for (const toolCall of lastMessage.tool_calls) {
@@ -229,7 +230,13 @@ export class AgentService implements IAgentService {
             };
           }
         }
-        if (lastMessage.content && typeof lastMessage.content === 'string') {
+        if (Array.isArray(lastMessage.content)) {
+          for (const part of lastMessage.content) {
+            if (part.type === 'text') {
+              yield { type: 'agent', content: part.text };
+            }
+          }
+        } else if (lastMessage.content && typeof lastMessage.content === 'string') {
           yield { type: 'agent', content: lastMessage.content };
         }
       } else if (stepName === 'human_in_the_loop') {

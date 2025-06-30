@@ -51,6 +51,7 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
 
   const processStream = async (stream: AsyncGenerator<{ type: string; content: string }>) => {
     let currentToolCall = '';
+    let isFirstAgentChunk = true;
 
     for await (const chunk of stream) {
       if (chunk.type === 'thinking') {
@@ -63,28 +64,28 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
         currentToolCall = '';
         setIsLoading(true);
 
-        let agentMessageIndex = -1;
-        setHistory(prev => {
-          const newHistory: Message[] = [...prev, { sender: 'agent', content: '' }];
-          agentMessageIndex = newHistory.length - 1;
-          return newHistory;
-        });
+        if (isFirstAgentChunk) {
+          setHistory(prev => [...prev, { sender: 'agent', content: '' }]);
+          isFirstAgentChunk = false;
+        }
 
         const words = chunk.content.split(' ');
-        let currentContent = '';
         for (const word of words) {
-          currentContent += (currentContent ? ' ' : '') + word;
           setHistory(prev => {
             const newHistory = [...prev];
-            if (newHistory[agentMessageIndex]) {
-              newHistory[agentMessageIndex] = {
-                ...newHistory[agentMessageIndex],
-                content: currentContent,
+            const lastMessage = newHistory[newHistory.length - 1];
+
+            if (lastMessage && lastMessage.sender === 'agent') {
+              const currentContent = lastMessage.content;
+              const newContent = currentContent + (currentContent ? ' ' : '') + word;
+              newHistory[newHistory.length - 1] = {
+                ...lastMessage,
+                content: newContent,
               };
             }
             return newHistory;
           });
-          await new Promise(resolve => setTimeout(resolve, 60));
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       } else if (chunk.type === 'human_input_required') {
         setHistory(prev => [...prev, { sender: 'agent', content: chunk.content }]);
@@ -207,24 +208,27 @@ export function ChatWindow({ agentService, onExit }: ChatWindowProps) {
             />
           </Box>
         </Box>
-      ) : showOptions && currentOptions.length > 0 ? (
-        <Box flexDirection="column" marginY={1}>
-          <Box marginBottom={1}>
-            <Text bold color="yellow">
-              {optionsQuestion}
-            </Text>
-          </Box>
-          <OptionSelector
-            options={currentOptions}
-            onSelect={handleOptionSelect}
-            onCancel={handleOptionCancel}
-          />
-        </Box>
       ) : (
-        <Box marginTop={1} borderStyle="single" paddingX={1}>
-          <Text>› </Text>
-          <TextInput value={input} onChange={setInput} onSubmit={handleSumbit} />
-        </Box>
+        <>
+          {showOptions && currentOptions.length > 0 && (
+            <Box flexDirection="column" marginY={1}>
+              <Box marginBottom={1}>
+                <Text bold color="yellow">
+                  {optionsQuestion}
+                </Text>
+              </Box>
+              <OptionSelector
+                options={currentOptions}
+                onSelect={handleOptionSelect}
+                onCancel={handleOptionCancel}
+              />
+            </Box>
+          )}
+          <Box marginTop={1} borderStyle="single" paddingX={1}>
+            <Text>› </Text>
+            <TextInput value={input} onChange={setInput} onSubmit={handleSumbit} />
+          </Box>
+        </>
       )}
       <Box marginTop={1} justifyContent="center">
         <Box flexDirection="column" alignItems="center">
